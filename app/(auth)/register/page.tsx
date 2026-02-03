@@ -2,9 +2,9 @@
 
 import Link from "next/link"
 import { FileText } from "lucide-react"
-import { LoginForm } from "@/components/auth/LoginForm"
+import RegisterForm from "@/components/auth/RegisterForm"
 
-export default function LoginPage() {
+export default function RegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30">
       <div className="w-full max-w-md space-y-8 px-4">
@@ -20,13 +20,13 @@ export default function LoginPage() {
             Welcome back
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Sign in to your account to continue
+            Sign up to your account to continue
           </p>
         </div>
 
         {/* Login Form */}
         <div className="rounded-lg border bg-card p-8 shadow-sm">
-          <LoginForm/>
+          <RegisterForm/>
         </div>
       </div>
     </div>

@@ -43,7 +43,7 @@ export function Header() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <UserNav>hello</UserNav>
+        <UserNav/>
 
         {/* User Navigation */}
         {/* <UserNav /> */}

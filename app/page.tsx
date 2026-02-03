@@ -1,9 +1,8 @@
-import { Header } from "@/components/dashboard/Header"
 
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 font-sans dark:bg-black">
-      <Header/>
+    
     <h3>welcome back</h3>
     </div>
   );
