@@ -3,13 +3,14 @@
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
-import { UserNav } from "./UserNav"
+// import { UserNav } from "./UserNav"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { UserNav } from "./Navigation"
 
 export function Header() {
   const { setTheme } = useTheme()
@@ -42,9 +43,10 @@ export function Header() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <UserNav>hello</UserNav>
 
         {/* User Navigation */}
-        <UserNav />
+        {/* <UserNav /> */}
       </div>
     </header>
   )
