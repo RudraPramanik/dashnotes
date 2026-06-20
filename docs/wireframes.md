@@ -529,6 +529,7 @@ Source: 429 + Retry-After header (global 100/min; login 5/min)
 | Doc | Content |
 |-----|---------|
 | `docs/backendapi.md` | Full backend routes, AI slices, RBAC |
+| `docs/frontend-stack.md` | Libraries, patterns, folder structure, build order |
 | `docs/wireframes.md` | This file — UI layouts and API mapping |
 
 ---
