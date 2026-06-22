@@ -17,22 +17,117 @@ Phase-by-phase implementation guide for Cursor Agent mode.
 
 ## How to use this file
 
-1. **New Cursor Agent chat per step** (or per 2 related steps max if small).
+1. **New Cursor Agent chat per session** in the [batching table](#cursor-session-batching-table) below.
 2. Paste **HARD RULES** below at the start of every session.
-3. Copy the **exact prompt** for the current step.
-4. Run the **Validation** block — do not proceed until it prints `PASS`.
-5. Update `PROGRESS.md` with step completed + commit to git.
-6. If validation fails, paste the error into the **same** chat — do not start a new step in a new chat until fixed.
+3. Copy prompts for **every step in that session** (in order).
+4. Run **each step's Validation** block before continuing within the session.
+5. Update `PROGRESS.md` + commit after the **last step** in the session passes.
+6. If validation fails, fix in the **same** chat — do not open the next session until all steps in the batch pass.
 
-**Slice grouping (optional — batch only if validation still passes per step):**
+> **Rule:** Never batch across Phase 1 steps 1.2–1.6 out of order. Never combine **1.6** (apiClient) with anything else.
+
+---
+
+## Cursor session batching table
+
+| Session | Steps | Mode | New chat? | ~Time | Why |
+|---------|-------|------|-----------|-------|-----|
+| **P0-A** | 0.1 + 0.2 | **Together** | Yes | 30–45m | Install + shadcn init — tooling only, no app logic |
+| **P0-B** | 0.3 + 0.4 | **Together** | Yes | 45–60m | Theme + providers must wire together in `layout.tsx` |
+| **P0-C** | 0.5 + 0.6 | **Together** | Yes | 30–45m | Routes scaffold + error boundaries complete foundation |
+| **P1-A** | 1.1 | **Single** | Yes | 5m | Install only — too small to merge with auth logic |
+| **P1-B** | 1.2 | **Single** | Yes | 20m | SSE parser isolated; blocks wrong early apiClient |
+| **P1-C** | 1.3 | **Single** | Yes | 30m | Auth store is critical — deserves full agent focus |
+| **P1-D** | 1.4 + 1.5 | **Together** | Yes | 45m | Token utils + refresh coordinator are one auth layer |
+| **P1-E** | 1.6 | **Single** | Yes | 45–60m | **apiClient + isRetry** — never batch; highest risk step |
+| **P1-F** | 1.7 | **Single** | Yes | 15m | Small hook; verify after heavy 1.6 |
+| **P1-G** | 1.8 | **Single** | Yes | 30m | Many API stubs + openapi-typescript |
+| **P1-H** | 1.9 | **Single** | Yes | 20m | Middleware is security-sensitive — keep isolated |
+| **P1-I** | 1.10 | **Single** | Yes | 45–60m | Login form + cookie + setSession — test before register |
+| **P1-J** | 1.11 | **Single** | Yes | 30m | Register mirrors login; separate session catches copy-paste bugs |
+| **P2-A** | 2.1 + 2.2 + 2.3 | **Together** | Yes | 45m | Sidebar install + shell store + query keys — small infra |
+| **P2-B** | 2.4 | **Single** | Yes | 25m | Workspace label + stub interface |
+| **P2-C** | 2.5 | **Single** | Yes | 30m | AI health hooks + banner |
+| **P2-D** | 2.6 | **Single** | Yes | 45m | Automation port/stub/factory — many files |
+| **P2-E** | 2.7 | **Single** | Yes | 20m | RoleGate + toast helpers |
+| **P2-F** | 2.8 | **Single** | Yes | 45–60m | Sidebar nav is large |
+| **P2-G** | 2.9 | **Single** | Yes | 45–60m | App shell layout — complex; don't merge with mobile |
+| **P2-H** | 2.10 | **Single** | Yes | 30m | Mobile tabs + context sheet — depends on 2.9 |
+| **P3-A** | 3.1 + 3.2 | **Together** | Yes | 20m | Install + pure util `indexing-status.ts` |
+| **P3-B** | 3.3 | **Single** | Yes | 45m | Notes API + hooks + polling logic |
+| **P3-C** | 3.4 | **Single** | Yes | 60–90m | Tiptap + boundary + editor page — heavy |
+| **P3-D** | 3.5 | **Single** | Yes | 60m | Notes list + notebook view — many components |
+| **P4-A** | 4.1 | **Single** | Yes | 10m | Install only |
+| **P4-B** | 4.2 | **Single** | Yes | 30m | XHR upload hook — distinct from fetch apiClient |
+| **P4-C** | 4.3 + 4.4 | **Together** | Yes | 45m | Files hooks/API + icons + list components |
+| **P4-D** | 4.5 | **Single** | Yes | 45m | File detail + context panel integration |
+| **P5-A** | 5.1 | **Single** | Yes | 20m | Thread hooks |
+| **P5-B** | 5.2 | **Single** | Yes | 45–60m | Chat stream hook — critical SSE logic |
+| **P5-C** | 5.3 | **Single** | Yes | 45m | Chat UI components |
+| **P5-D** | 5.4 | **Single** | Yes | 45m | Thread list + pages + AiErrorBoundary |
+| **P6-A** | 6.1 | **Single** | Yes | 45m | Agent stream hook |
+| **P6-B** | 6.2 | **Single** | Yes | 30m | Tool trace panel |
+| **P6-C** | 6.3 | **Single** | Yes | 20m | Agent hub (mostly static) |
+| **P6-D** | 6.4 | **Single** | Yes | 45m | Agent session pages |
+| **P7-A** | 7.1 + 7.2 | **Together** | Yes | 30m | Install + search hook |
+| **P7-B** | 7.3 | **Single** | Yes | 45m | Command palette UI + layout wire |
+| **P8-A** | 8.1 | **Single** | Yes | 10m | Install only |
+| **P8-B** | 8.2 | **Single** | Yes | 25m | Account settings |
+| **P8-C** | 8.3 | **Single** | Yes | 45m | Members table + invite |
+| **P8-D** | 8.4 | **Single** | Yes | 30m | Automation inbox |
+| **P9-A** | 9.1 + 9.2 | **Together** | Yes | 45m | Audits — no new features |
+| **P9-B** | 9.3 | **Single** | Yes | 25m | Offline banner |
+| **P9-C** | 9.4 + 9.5 | **Together** | Yes | 45m | Performance + security grep audits |
+| **P9-D** | 9.6 + 9.7 | **Together** | Yes | 30m | Boundary audit + final build |
+
+**Total: 38 Cursor sessions** (vs 52 steps if every step were alone).
+
+### Quick reference — always single (never batch)
+
+| Step | Reason |
+|------|--------|
+| **1.6** | apiClient + `isRetry` circuit breaker |
+| **1.10** | Login — test before register |
+| **2.9** | App shell layout — too many moving parts |
+| **3.4** | Tiptap editor |
+| **5.2** | Chat SSE stream hook |
+| **6.1** | Agent SSE stream hook |
+
+### Quick reference — good to batch
 
 | Batch | Steps |
 |-------|-------|
-| Phase 0a | 0.1 + 0.2 |
-| Phase 0b | 0.3 + 0.4 |
-| Phase 0c | 0.5 + 0.6 |
+| Foundation tooling | 0.1 + 0.2 |
+| Theme + providers | 0.3 + 0.4 |
+| Routes + boundaries | 0.5 + 0.6 |
+| Token layer | 1.4 + 1.5 |
+| Shell infra | 2.1 + 2.2 + 2.3 |
+| Notes util install | 3.1 + 3.2 |
+| Files mid-phase | 4.3 + 4.4 |
+| Palette setup | 7.1 + 7.2 |
+| Final audits | 9.1 + 9.2, 9.4 + 9.5, 9.6 + 9.7 |
 
-Phase 1+: prefer **one step per chat** (auth/API order matters).
+### Not recommended (your question: 0.1 + 0.2 + 0.3)
+
+| Batch | Verdict |
+|-------|---------|
+| 0.1 + 0.2 + 0.3 | **Avoid** — 0.3 edits `layout.tsx` before 0.4 adds `RootProvider`; easy to wire theme wrong |
+| 1.1 + 1.2 + 1.3 | **Avoid** — auth store should follow SSE alone; order matters |
+| 1.4 + 1.5 + 1.6 | **Avoid** — 1.6 must be isolated and verified alone |
+| 2.8 + 2.9 + 2.10 | **Avoid** — shell layout breaks often; validate 2.9 before mobile |
+
+### Per-session prompt header (when batching)
+
+```
+SESSION P2-A — implement steps 2.1, then 2.2, then 2.3 in order.
+Run validation after EACH step before continuing.
+Do not start step 2.4.
+@docs/final-blueprint.md @PROGRESS.md
+[paste HARD RULES]
+[paste step 2.1 prompt]
+[after 2.1 PASS — paste step 2.2 prompt in same chat]
+...
+```
 
 ---
 
