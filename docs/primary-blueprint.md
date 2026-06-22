@@ -124,15 +124,77 @@ pnpm add react-hook-form @hookform/resolvers zod
 |--------|-----------|
 | `get/post/patch/delete` | JSON; Bearer from auth store |
 | `stream` | Raw `Response` for SSE |
-| All | On **401**: attempt **one** silent refresh → retry once → else `clearSession()` + redirect |
+| All | On **401**: refresh + **one** retry max — see circuit breaker below |
 
 | Status | Handling |
 |--------|----------|
-| 401 | Refresh + retry once, then logout |
+| 401 (first attempt) | `handleUnauthorized()` → refresh → retry with `isRetry: true` |
+| 401 (`isRetry: true`) | **Do not refresh again** — `clearSession()` + redirect (or throw `ApiError`) |
 | 429 | Throw `{ status: 429, retryAfter }` |
 | 503 on `/ai/*` | Throw `AiUnavailableError` |
 
 `lib/api/sse-parser.ts` — async generator `{ event, data }`; zero React coupling.
+
+#### 401 circuit breaker (required — prevents infinite refresh loops)
+
+"Retry once" must be enforced in code, not by convention. Pass an internal `isRetry` flag on every request path:
+
+```ts
+// lib/api/client.ts — internal shape
+type RequestOptions = {
+  method: string;
+  body?: unknown;
+  /** Set true only on the single post-refresh replay. Never on the first attempt. */
+  isRetry?: boolean;
+};
+
+async function request<T>(path: string, options: RequestOptions): Promise<T> {
+  const res = await fetch(url(path), {
+    method: options.method,
+    headers: authHeaders(),
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  if (res.status === 401) {
+    // Circuit breaker: second 401 means refresh already ran (or replay used new token).
+    // Causes: expired refresh, revoked session, valid token but no resource access (RBAC).
+    // Must NOT call handleUnauthorized() again — that would loop refresh → retry → 401 → refresh…
+    if (options.isRetry) {
+      clearSession();
+      redirectToLogin("unauthorized");
+      throw new ApiError(401, "Unauthorized");
+    }
+
+    const refreshed = await handleUnauthorized();
+    if (!refreshed) {
+      clearSession();
+      redirectToLogin("session_expired");
+      throw new ApiError(401, "Session expired");
+    }
+
+    return request<T>(path, { ...options, isRetry: true });
+  }
+
+  // ... handle 429, 503, parse JSON
+}
+```
+
+**Rules:**
+
+| Rule | Why |
+|------|-----|
+| `isRetry` defaults to `false` | First 401 may be fixable with refresh |
+| Exactly **one** replay per original call | `isRetry: true` on replay only |
+| Second 401 → logout, never refresh | Token is fresh; failure is session/RBAC — not stale access token |
+| `stream()` uses the same flag | Pre-check refresh via `guardStream()`; if stream returns 401 mid-flight, do not auto-refresh inside parser — abort and surface error |
+| Public routes (`/auth/login`) skip refresh | `auth.ts` calls `fetch` directly or passes `skipAuthRefresh: true` |
+
+**Phase 1 tests (manual or unit):**
+
+1. First 401 + successful refresh → request succeeds on replay.
+2. First 401 + failed refresh → logout, no replay.
+3. Replay returns 401 → logout, `handleUnauthorized` called **once** total.
+4. Concurrent 401s → mutex in `token-refresh.ts` dedupes to a single refresh.
 
 ### 1.3 — Auth store (`lib/stores/auth-store.ts`)
 
@@ -222,6 +284,7 @@ Presence cookie `dashnotes_authed=1` (no token value) for `(app)/*` redirect gat
 
 - Login + register against live backend
 - Refresh rotation works; SSE guard refreshes proactively
+- **401 circuit breaker:** replay uses `isRetry: true`; second 401 never triggers another refresh
 - 401 after failed refresh → logout
 - Protected routes gated
 

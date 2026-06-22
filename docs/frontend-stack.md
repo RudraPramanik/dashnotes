@@ -34,7 +34,7 @@ Use this doc when choosing libraries, scaffolding folders, or reviewing PRs.
 | Client state | **Zustand** | Auth tokens, shell UI only — **not** theme |
 | Forms | **React Hook Form** + **Zod** | All user input |
 | API types | **openapi-typescript** | From FastAPI `/openapi.json` |
-| HTTP | **fetch** wrapper | 401 → refresh → retry once |
+| HTTP | **fetch** wrapper | 401 → refresh → retry once (`isRetry` circuit breaker) |
 | AI streaming | **Custom SSE hooks** | `sse-parser.ts` + chat/agent hooks |
 | Toasts | **sonner** | shadcn integration |
 | Command palette | **cmdk** + shadcn `Command` | ⌘K |
@@ -65,7 +65,8 @@ Use this doc when choosing libraries, scaffolding folders, or reviewing PRs.
 5. **Citations from SSE `metadata` only** — never parse token stream.
 6. **Types from OpenAPI** — regenerate on backend schema change.
 7. **Refresh in one module** — `lib/auth/token-refresh.ts`; apiClient and stream guard call it.
-8. **Feature flags for unfinished backend** — automation, optional health endpoint.
+8. **401 circuit breaker** — internal `isRetry` flag; second 401 never calls refresh again.
+9. **Feature flags for unfinished backend** — automation, optional health endpoint.
 
 ---
 
@@ -137,18 +138,41 @@ type AuthState = {
 ### Refresh flow
 
 ```
-apiClient request
+apiClient.request(path, { isRetry: false })
   → 401?
-    → token-refresh.handleUnauthorized() (mutex)
-      → POST /auth/refresh
-      → updateTokens()
-      → retry request once
-      → else clearSession() + redirect /auth/login
+    → isRetry === true?
+        YES → clearSession() + redirect (circuit breaker — do NOT refresh)
+        NO  → handleUnauthorized() (mutex, once)
+              → refresh OK? → replay request(path, { isRetry: true })
+              → refresh fail? → clearSession() + redirect
 
 use-stream-guard.guardStream()
-  → token-refresh.refreshIfNeeded() (60s buffer before exp)
+  → refreshIfNeeded() (60s buffer before exp)
   → false if redirecting
 ```
+
+```ts
+// lib/api/client.ts — required pattern
+type RequestOptions = {
+  isRetry?: boolean; // internal; true only on post-refresh replay
+};
+
+async function request<T>(path: string, opts: RequestOptions): Promise<T> {
+  const res = await fetch(...);
+  if (res.status === 401) {
+    if (opts.isRetry) {
+      clearSession();
+      throw new ApiError(401, "Unauthorized");
+    }
+    const ok = await handleUnauthorized();
+    if (!ok) throw new ApiError(401, "Session expired");
+    return request<T>(path, { ...opts, isRetry: true });
+  }
+  // ...
+}
+```
+
+**Why:** After a successful refresh, a second 401 means the token is valid but the session or resource access failed (revoked user, RBAC, wrong workspace). Calling refresh again causes an infinite loop.
 
 Never log tokens. Never commit tokens. Rotate refresh on every use.
 
@@ -382,6 +406,7 @@ Follow **`docs/primary-blueprint.md`** phases 0–9.
 - [ ] Query keys include `workspaceId`
 - [ ] No `workspace_id` in AI request bodies
 - [ ] Refresh logic only in `token-refresh.ts`
+- [ ] 401 replay passes `isRetry: true`; second 401 does not call refresh
 - [ ] No tokens in logs or git
 - [ ] `indexing_status` used for badges (not tag heuristics)
 - [ ] Citations from SSE metadata only
@@ -398,6 +423,7 @@ Follow **`docs/primary-blueprint.md`** phases 0–9.
 |-----|---------|
 | [backendapi.md](./backendapi.md) | Current backend |
 | [backend-frontend-contract.md](./backend-frontend-contract.md) | Integration spec for backend team |
+| [final-blueprint.md](./final-blueprint.md) | Cursor implementation prompts (this workflow) |
 | [wireframes.md](./wireframes.md) | UI layouts |
 | [primary-blueprint.md](./primary-blueprint.md) | Phased build plan |
 | [frontend-stack.md](./frontend-stack.md) | This file |

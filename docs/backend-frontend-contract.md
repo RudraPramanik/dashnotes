@@ -83,6 +83,19 @@ Same token pair as login on success, or 201 + redirect to login (frontend handle
 
 Access expiry must be decodable from JWT `exp` for proactive refresh (60s buffer before SSE).
 
+### Client 401 handling (frontend contract)
+
+The apiClient **must** implement a circuit breaker:
+
+| Attempt | On 401 |
+|---------|--------|
+| First (`isRetry: false`) | Call `POST /auth/refresh`; on success replay original request once |
+| Replay (`isRetry: true`) | **Do not refresh** — `clearSession()` and redirect to login |
+
+A second 401 after refresh means the access token is already fresh. Typical causes: revoked refresh/session, user removed from workspace, or resource-level denial. The client must not enter a refresh loop.
+
+Prefer **403** for RBAC denials on the backend so clients can distinguish forbidden (show error) from unauthenticated (refresh/logout). If the backend returns 401 for both expired token and denied access, the circuit breaker still prevents loops — user lands on login after replay fails.
+
 ---
 
 ## P0 — Indexing status (required before frontend Phase 3–4 polish)
@@ -225,5 +238,6 @@ All endpoints above must appear in `/openapi.json` for `pnpm api:types` regenera
 | Doc | Content |
 |-----|---------|
 | [backendapi.md](./backendapi.md) | Current backend implementation |
-| [primary-blueprint.md](./primary-blueprint.md) | Frontend build phases |
+| [primary-blueprint.md](./primary-blueprint.md) | Phased build plan |
+| [final-blueprint.md](./final-blueprint.md) | Cursor step prompts + validation |
 | [frontend-stack.md](./frontend-stack.md) | Libraries and patterns |
