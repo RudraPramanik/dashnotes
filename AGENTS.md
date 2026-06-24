@@ -5,7 +5,7 @@ Cursor loads this file automatically. **Do not paste these rules into every chat
 ## Project context
 
 - **App:** DashNotes — Next.js 16 App Router frontend for a FastAPI backend.
-- **Progress:** Read `docs/dev_progress.md` first (current phase, last step, blockers).
+- **Progress:** Read `PROGRESS.md` first (current phase, last step, blockers).
 - **Current work:** Follow the active step file only — `docs/steps/P0.md`, `P1.md`, etc.
 - **Contracts:** `docs/backend-frontend-contract.md`, `docs/frontend-stack.md`.
 
@@ -37,7 +37,7 @@ Implement **only** the step prompt in the active session. Do not skip ahead or b
 ## After each step
 
 1. Run that step's **Validation** script from the step file.
-2. On PASS, append to `docs/dev_progress.md` and update the **Current** table.
+2. On PASS, append to `PROGRESS.md` and update the **Current** table.
 3. Commit only when the user asks.
 
 ---
