@@ -17,16 +17,15 @@ After the **last step in a session** (or phase complete): update **Current** bel
 | Field | Value |
 |-------|-------|
 | Phase | P0 |
-| Last completed step | — |
-| Next step | 0.1 |
+| Last completed step | 0.2 |
+| Next step | 0.3 |
 | Branch | — |
 
 ## Completed steps
 
-<!-- Append below as you go. Example:
 - [x] 0.1 — core deps installed
--->
+- [x] 0.2 — shadcn init + base component set
 
 ## Notes / blockers
 
-<!-- Short bullets only: backend down, route mismatch, env vars, etc. -->
+- shadcn CLI v4 (`@latest`) no longer exposes interactive Slate/Default prompts; init used v2.5.0 for `baseColor: slate`, then `@latest add` for components + `utils`.
