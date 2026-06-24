@@ -57,7 +57,7 @@ All authenticated routes share this frame.
 │              │                                               │               │
 │  WORKSPACE   │                                               │  CONTEXT      │
 │  ┌─────────┐ │                                               │  PANEL        │
-│  │ Acme ▾  │ │              MAIN CONTENT                     │  (optional)   │
+│  │ Acme    │ │              MAIN CONTENT                     │  (optional)   │
 │  └─────────┘ │                                               │               │
 │              │                                               │  Citations    │
 │  Notes       │                                               │  Tool trace   │
@@ -81,7 +81,7 @@ All authenticated routes share this frame.
 
 **Shell behaviors**
 
-- **Workspace switcher (`Acme ▾`):** `GET /workspaces` → re-auth or token refresh with new `wid` → invalidate all TanStack Query caches.
+- **Workspace label (`Acme`):** `GET /workspaces` → display name for JWT `wid`. **Switching deferred at launch** — dropdown switcher added later with `POST /auth/switch-workspace` (see `backend-frontend-contract.md`).
 - **AI status (`AI ●`):** green = `/health/ai` ok; amber = degraded; red = unavailable. Tooltip explains Qdrant/LLM state.
 - **`[+ New ▾]`:** New note · Upload file · New chat · Ask agent (context-aware default).
 - **Context panel:** collapsible; auto-opens on chat (citations) and agent (tool trace).
@@ -498,7 +498,7 @@ Source: 429 + Retry-After header (global 100/min; login 5/min)
 | Screen | Primary endpoints |
 |--------|-------------------|
 | Login / Register | `POST /auth/login`, `POST /auth/register` |
-| Workspace switcher | `GET /workspaces` |
+| Workspace label | `GET /workspaces` (read-only at launch) |
 | Notes list / editor | `GET/POST/PATCH/DELETE /notes` |
 | Notebooks | `GET/POST/PATCH/DELETE /notebooks` |
 | Files library / detail | `GET /files`, `POST /files/upload`, download |
@@ -529,7 +529,9 @@ Source: 429 + Retry-After header (global 100/min; login 5/min)
 | Doc | Content |
 |-----|---------|
 | `docs/backendapi.md` | Full backend routes, AI slices, RBAC |
+| `docs/backend-frontend-contract.md` | Auth, indexing, automation — frontend ↔ backend integration spec |
 | `docs/frontend-stack.md` | Libraries, patterns, folder structure, build order |
+| `docs/primary-blueprint.md` | Phased build plan — what to ship in each phase |
 | `docs/wireframes.md` | This file — UI layouts and API mapping |
 
 ---
