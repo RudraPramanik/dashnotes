@@ -2663,3 +2663,160 @@ AI + AUTH RULES — enforced in every session:
 ---
 
 *Cursor prompts v2 — blueprint v2, backend-frontend-contract, isRetry circuit breaker, error boundary hierarchy*
+Full session table (38 chats, 52 steps)
+Session	Steps	Together or single?
+P0-A
+0.1 + 0.2
+Together
+P0-B
+0.3 + 0.4
+Together
+P0-C
+0.5 + 0.6
+Together
+P1-A
+1.1
+Single
+P1-B
+1.2
+Single
+P1-C
+1.3
+Single
+P1-D
+1.4 + 1.5
+Together
+P1-E
+1.6
+Single (never batch)
+P1-F
+1.7
+Single
+P1-G
+1.8
+Single
+P1-H
+1.9
+Single
+P1-I
+1.10
+Single
+P1-J
+1.11
+Single
+P2-A
+2.1 + 2.2 + 2.3
+Together
+P2-B
+2.4
+Single
+P2-C
+2.5
+Single
+P2-D
+2.6
+Single
+P2-E
+2.7
+Single
+P2-F
+2.8
+Single
+P2-G
+2.9
+Single
+P2-H
+2.10
+Single
+P3-A
+3.1 + 3.2
+Together
+P3-B
+3.3
+Single
+P3-C
+3.4
+Single
+P3-D
+3.5
+Single
+P4-A
+4.1
+Single
+P4-B
+4.2
+Single
+P4-C
+4.3 + 4.4
+Together
+P4-D
+4.5
+Single
+P5-A
+5.1
+Single
+P5-B
+5.2
+Single
+P5-C
+5.3
+Single
+P5-D
+5.4
+Single
+P6-A
+6.1
+Single
+P6-B
+6.2
+Single
+P6-C
+6.3
+Single
+P6-D
+6.4
+Single
+P7-A
+7.1 + 7.2
+Together
+P7-B
+7.3
+Single
+P8-A
+8.1
+Single
+P8-B
+8.2
+Single
+P8-C
+8.3
+Single
+P8-D
+8.4
+Single
+P9-A
+9.1 + 9.2
+Together
+P9-B
+9.3
+Single
+P9-C
+9.4 + 9.5
+Together
+P9-D
+9.6 + 9.7
+Together
+Rules of thumb
+Pattern	Batch?
+Install-only + next install step
+Yes (e.g. 0.1+0.2, 3.1+3.2)
+Tightly coupled wiring (theme + providers)
+Yes (0.3+0.4)
+1.6 apiClient
+Always single
+Stream hooks (5.2, 6.1)
+Always single
+Big UI (2.9 shell, 3.4 Tiptap, 1.10 login)
+Always single
+Phase 9 audits
+Batch in pair
