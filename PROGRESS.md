@@ -6,9 +6,9 @@
 
 | Field | Value |
 |-------|-------|
-| Phase | P0 |
-| Last completed step | 0.6 |
-| Next step | Phase 0 final validation → P1 |
+| Phase | P1 |
+| Last completed step | 1.2 — SSE parser |
+| Next step | 1.3 — Auth store |
 | Branch | `feat/phase-0-foundation` |
 
 ## Completed
@@ -19,6 +19,7 @@
 - [x] 0.4 — RootProvider, QueryProvider, Toaster wired in layout
 - [x] 0.5 — route group scaffolding (auth + app placeholders)
 - [x] 0.6 — GlobalErrorBoundary, AiErrorBoundary, layout wrap
+- [x] 1.2 — SSE parser (`lib/api/sse-parser.ts`)
 
 ## Notes
 
@@ -34,4 +35,5 @@
 0.4 PASS
 0.5 PASS
 0.6 PASS
+1.2 PASS
 ```
