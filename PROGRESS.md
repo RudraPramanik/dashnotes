@@ -7,8 +7,8 @@
 | Field | Value |
 |-------|-------|
 | Phase | P1 |
-| Last completed step | 1.2 — SSE parser |
-| Next step | 1.3 — Auth store |
+| Last completed step | 1.3 — Auth store |
+| Next step | 1.4 — Token utilities |
 | Branch | `feat/phase-0-foundation` |
 
 ## Completed
@@ -20,6 +20,7 @@
 - [x] 0.5 — route group scaffolding (auth + app placeholders)
 - [x] 0.6 — GlobalErrorBoundary, AiErrorBoundary, layout wrap
 - [x] 1.2 — SSE parser (`lib/api/sse-parser.ts`)
+- [x] 1.3 — Auth store (`lib/stores/auth-store.ts`)
 
 ## Notes
 
@@ -36,4 +37,5 @@
 0.5 PASS
 0.6 PASS
 1.2 PASS
+1.3 PASS
 ```
