@@ -7,8 +7,8 @@
 | Field | Value |
 |-------|-------|
 | Phase | P1 |
-| Last completed step | 1.3 — Auth store |
-| Next step | 1.4 — Token utilities |
+| Last completed step | 1.4 — Token utilities |
+| Next step | 1.5 — Token refresh coordinator |
 | Branch | `feat/phase-0-foundation` |
 
 ## Completed
@@ -21,6 +21,7 @@
 - [x] 0.6 — GlobalErrorBoundary, AiErrorBoundary, layout wrap
 - [x] 1.2 — SSE parser (`lib/api/sse-parser.ts`)
 - [x] 1.3 — Auth store (`lib/stores/auth-store.ts`)
+- [x] 1.4 — Token utilities (`lib/auth/token.ts`)
 
 ## Notes
 
@@ -38,4 +39,5 @@
 0.6 PASS
 1.2 PASS
 1.3 PASS
+1.4 PASS
 ```
