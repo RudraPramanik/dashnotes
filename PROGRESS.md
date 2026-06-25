@@ -7,8 +7,8 @@
 | Field | Value |
 |-------|-------|
 | Phase | P0 |
-| Last completed step | 0.4 |
-| Next step | 0.5 — Route group scaffolding |
+| Last completed step | 0.6 |
+| Next step | Phase 0 final validation → P1 |
 | Branch | `feat/phase-0-foundation` |
 
 ## Completed
@@ -17,6 +17,8 @@
 - [x] 0.2 — shadcn init + base component set
 - [x] 0.3 — ThemeProvider, ThemeToggle, globals.css slate vars
 - [x] 0.4 — RootProvider, QueryProvider, Toaster wired in layout
+- [x] 0.5 — route group scaffolding (auth + app placeholders)
+- [x] 0.6 — GlobalErrorBoundary, AiErrorBoundary, layout wrap
 
 ## Notes
 
@@ -30,4 +32,6 @@
 0.2 PASS
 0.3 PASS
 0.4 PASS
+0.5 PASS
+0.6 PASS
 ```

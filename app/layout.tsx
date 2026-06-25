@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 
+import { GlobalErrorBoundary } from "@/components/errors/GlobalErrorBoundary";
 import { RootProvider } from "@/providers/RootProvider";
 
 import "./globals.css";
@@ -27,17 +28,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
-        <RootProvider>
-          {children}
-          <Toaster />
-        </RootProvider>
-      </body>
-    </html>
+    <GlobalErrorBoundary>
+      <html
+        lang="en"
+        suppressHydrationWarning
+        className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      >
+        <body className="min-h-full flex flex-col">
+          <RootProvider>
+            {children}
+            <Toaster />
+          </RootProvider>
+        </body>
+      </html>
+    </GlobalErrorBoundary>
   );
 }
