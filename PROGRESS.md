@@ -7,8 +7,8 @@
 | Field | Value |
 |-------|-------|
 | Phase | P1 |
-| Last completed step | 1.5 — Token refresh coordinator |
-| Next step | 1.6 — API client (401 circuit breaker) |
+| Last completed step | 1.6 — API client (401 circuit breaker) |
+| Next step | 1.7 — Stream guard hook |
 | Branch | `feat/phase-0-foundation` |
 
 ## Completed
@@ -23,6 +23,7 @@
 - [x] 1.3 — Auth store (`lib/stores/auth-store.ts`)
 - [x] 1.4 — Token utilities (`lib/auth/token.ts`)
 - [x] 1.5 — Token refresh coordinator (`lib/auth/token-refresh.ts`)
+- [x] 1.6 — API client (`lib/api/client.ts`)
 
 ## Notes
 
@@ -42,4 +43,5 @@
 1.3 PASS
 1.4 PASS
 1.5 PASS
+1.6 PASS
 ```
