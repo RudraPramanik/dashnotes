@@ -1,0 +1,51 @@
+schema: spec-driven
+
+# Shown to AI when creating artifacts.
+context: |
+  Product: DashNotes — multi-tenant notes app (workspaces, notes/notebooks, files, RAG chat, LangGraph agent).
+  This repo: Next.js 16 App Router frontend for the DashNoteSystem FastAPI backend (sibling/API repo).
+  Do not invent backend routes — OpenAPI at {API_BASE}/docs is normative for JSON fields.
+
+  Doc map:
+  - docs/backendGuide.md — frontend-facing product map, auth, domain APIs, AI SSE, ops UX
+  - docs/frontend-stack.md — locked stack and architecture principles
+  - docs/backend-frontend-contract.md — auth refresh, indexing_status, contracts
+  - AGENTS.md — hard coding guardrails (always apply)
+  - PROGRESS.md + docs/steps/P*.md — implementation schedule; do not skip ahead
+
+  Stack: Next.js 16, React 19, TypeScript, Tailwind 4, shadcn/ui + Radix, next-themes (dark default),
+  TanStack Query v5 (server state), Zustand (auth/shell only), RHF + Zod, fetch apiClient,
+  custom SSE (not Vercel AI SDK), jose for JWT decode display, sonner, Tiptap (Phase 3+).
+
+  Current build (see PROGRESS.md): Phase P1; last done 1.6 API client; next 1.7 stream guard.
+  Branch typically feat/phase-0-foundation until phase branches change.
+
+  Frontend laws (non-negotiable):
+  - Access token → sessionStorage key dashnotes_at; refresh → Zustand memory only; never localStorage for tokens
+  - Never send workspace_id on /ai/* — tenant from JWT wid only
+  - Chat ≠ Agent — separate UI modes and SSE parsers
+  - Citations only from SSE metadata events — never parse token stream
+  - apiClient 401: isRetry circuit breaker; handleUnauthorized from lib/auth/token-refresh.ts
+  - No Zustand store for server data TanStack Query owns
+  - Named React exports (except page.tsx default); explicit async return types; no any
+  - Loading, empty, and error states required on UI surfaces
+  - indexing_status from API — not tag heuristics; workspace switching deferred at launch
+
+rules:
+  proposal:
+    - Keep proposals under ~500 words; include Why, What Changes, Capabilities, Impact
+    - Always include a Non-goals bullet list (or explicit Non-Goals in design)
+    - Never invent API routes or fields — cite OpenAPI / docs/backendGuide.md
+    - Respect AGENTS.md hard rules even if a shorter path looks easier
+    - Align scope with PROGRESS.md / active step file unless the change is docs/OpenSpec-only
+  tasks:
+    - Break work into small checkbox tasks (one session each)
+    - Do not add package installs unless the step/prompt lists them
+    - Prefer editing existing files over recreating them
+    - Call out validation steps from the active docs/steps file when implementing product code
+  specs:
+    - UX/integration laws are normative; field lists defer to OpenAPI
+    - Use SHALL/MUST; every requirement needs at least one #### Scenario
+  design:
+    - Prefer brownfield-safe, docs-aligned decisions over greenfield rewrites
+    - Call out conflicts with AGENTS.md explicitly if any appear
