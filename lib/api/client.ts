@@ -114,56 +114,73 @@ async function throwForErrorResponse(
   } satisfies ApiError;
 }
 
-async function fetchWithAuth(
+async function executeWithAuthRetry<T>(
+  attempt: (isRetry: boolean) => Promise<Response>,
+  onResponse: (res: Response, isRetry: boolean) => Promise<T>,
+  skipAuthRefresh?: boolean,
+): Promise<T> {
+  const first = await attempt(false);
+
+  if (first.status !== 401) {
+    return onResponse(first, false);
+  }
+
+  if (skipAuthRefresh === true) {
+    const message = await parseErrorMessage(first);
+    throw {
+      status: 401,
+      message,
+    } satisfies ApiError;
+  }
+
+  const refreshed = await handleUnauthorized();
+  if (!refreshed) {
+    throw {
+      status: 401,
+      message: "Unauthorized",
+    } satisfies ApiError;
+  }
+
+  const second = await attempt(true);
+
+  if (second.status === 401) {
+    useAuthStore.getState().clearSession();
+    redirectToLogin("unauthorized");
+    throw {
+      status: 401,
+      message: "Unauthorized",
+    } satisfies ApiError;
+  }
+
+  return onResponse(second, true);
+}
+
+function createAttempt(
   path: string,
   options: RequestOptions,
-): Promise<Response> {
-  const response = await fetch(`${getBaseUrl()}${path}`, {
-    method: options.method,
-    headers: buildHeaders(options),
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-    signal: options.signal,
-  });
-
-  if (response.status === 401) {
-    if (options.isRetry === true) {
-      useAuthStore.getState().clearSession();
-      redirectToLogin("unauthorized");
-      throw {
-        status: 401,
-        message: "Unauthorized",
-      } satisfies ApiError;
-    }
-
-    if (options.skipAuthRefresh) {
-      const message = await parseErrorMessage(response);
-      throw {
-        status: 401,
-        message,
-      } satisfies ApiError;
-    }
-
-    const refreshed = await handleUnauthorized();
-    if (!refreshed) {
-      throw {
-        status: 401,
-        message: "Unauthorized",
-      } satisfies ApiError;
-    }
-
-    return fetchWithAuth(path, { ...options, isRetry: true });
-  }
-
-  if (!response.ok) {
-    await throwForErrorResponse(response, path);
-  }
-
-  return response;
+): (isRetry: boolean) => Promise<Response> {
+  return (isRetry: boolean): Promise<Response> =>
+    fetch(`${getBaseUrl()}${path}`, {
+      method: options.method,
+      headers: buildHeaders({ ...options, isRetry }),
+      body:
+        options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      signal: options.signal,
+    });
 }
 
 async function request<T>(path: string, options: RequestOptions): Promise<T> {
-  const response = await fetchWithAuth(path, options);
-  return (await response.json()) as T;
+  return executeWithAuthRetry(
+    createAttempt(path, options),
+    async (res: Response): Promise<T> => {
+      if (!res.ok) {
+        await throwForErrorResponse(res, path);
+      }
+
+      return (await res.json()) as T;
+    },
+    options.skipAuthRefresh,
+  );
 }
 
 export const apiClient = {
@@ -196,11 +213,22 @@ export const apiClient = {
     body: unknown,
     signal?: AbortSignal,
   ): Promise<Response> {
-    return fetchWithAuth(path, {
+    const options: RequestOptions = {
       method: "POST",
       body,
       signal,
       isRetry: false,
-    });
+    };
+
+    return executeWithAuthRetry(
+      createAttempt(path, options),
+      async (res: Response): Promise<Response> => {
+        if (!res.ok) {
+          await throwForErrorResponse(res, path);
+        }
+
+        return res;
+      },
+    );
   },
 };

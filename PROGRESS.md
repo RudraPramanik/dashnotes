@@ -7,7 +7,7 @@
 | Field | Value |
 |-------|-------|
 | Phase | P1 |
-| Last completed step | 1.6 — API client (401 circuit breaker) |
+| Last completed step | 1.6 — API client (401 circuit breaker) + 1.6-patch (`executeWithAuthRetry`) |
 | Next step | 1.7 — Stream guard hook |
 | Branch | `feat/phase-0-foundation` |
 
@@ -29,6 +29,17 @@
 
 - shadcn CLI v4 (`@latest`) no longer exposes interactive Slate/Default prompts; init used v2.5.0 for `baseColor: slate`, then `@latest add` for components + `utils`.
 - `ThemeToggle` is temporarily on `app/page.tsx` (top-right) for manual theme verification — remove when shell lands in Phase 2.
+- **Architecture v3:** Patched steps live in `docs/update_blueprint.md` (OpenSpec change `adopt-architecture-v3-patch`). When Phase 2 starts, use this session order (from update_blueprint); **2.11 gates Phase 3**:
+  - P2-A: 2.1 + 2.2(revised) + 2.3
+  - P2-B: 2.4
+  - P2-C: 2.5
+  - P2-D: 2.6(cleaned)
+  - P2-E: 2.7
+  - P2-F: 2.8
+  - P2-G: 2.9(revised) — ContextPanel-as-slot in this session
+  - P2-H: 2.10
+  - P2-I: 2.11(new) — OpenAPI types; nothing in Phase 3 until PASS
+  - Stub step file when needed: `docs/steps/P2.md` (point at update_blueprint for revised prompts).
 
 ## Validation log
 
@@ -44,4 +55,5 @@
 1.4 PASS
 1.5 PASS
 1.6 PASS
+1.6-patch PASS
 ```
