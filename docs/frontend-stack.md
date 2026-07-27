@@ -63,10 +63,17 @@ Use this doc when choosing libraries, scaffolding folders, or reviewing PRs.
 3. **Never send `workspace_id` on AI routes** — tenant from JWT.
 4. **Chat ≠ Agent** — separate hooks and UI parsers.
 5. **Citations from SSE `metadata` only** — never parse token stream.
-6. **Types from OpenAPI** — regenerate on backend schema change.
+6. **Types from OpenAPI** — regenerate on backend schema change; Phase 3+ uses `lib/api/types.ts` (Step 2.11 gate) — no `unknown` / cast bypass.
 7. **Refresh in one module** — `lib/auth/token-refresh.ts`; apiClient and stream guard call it.
-8. **401 circuit breaker** — internal `isRetry` flag; second 401 never calls refresh again.
+8. **401 circuit breaker** — shared internal `executeWithAuthRetry` for JSON and `stream`; `isRetry` flag; second 401 never calls refresh again.
 9. **Feature flags for unfinished backend** — automation, optional health endpoint.
+10. **Server Components by default** — `app/(app)/layout.tsx` stays a Server Component; interactivity in named client leaves (`AppShellEffects`, banners, toggles).
+11. **ContextPanel is a slot** — `{ children }` only; no feature-directory imports. Pages own panel content.
+12. **Chrome-only shell store** — sidebar / panel open / palette flags only — never citations, tool-trace, or domain payloads.
+13. **Shared indexing poll** — `useIndexingPoll` owns the ~180s timeout; `use-note` / `use-file` delegate to it.
+14. **Composition + strict props** — prefer leaf composition (e.g. NoteEditor) over god components; leaves take primitives/callbacks only.
+
+Patched step text: see `docs/update_blueprint.md` (supersedes matching v2 sections in `docs/final-blueprint.md`).
 
 ---
 
