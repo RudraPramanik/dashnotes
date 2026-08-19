@@ -1,6 +1,8 @@
 # DashNotes — Frontend Tech Stack
 
-Implementation guide for the DashNotes Next.js client. Aligns with **`docs/backendapi.md`**, **`docs/backend-frontend-contract.md`**, **`docs/wireframes.md`**, and **`docs/primary-blueprint.md`**.
+Implementation guide for the DashNotes Next.js client. Aligns with **`docs/backendapi.md`**, **`docs/backend-frontend-contract.md`**, **`docs/wireframes.md`**, **`docs/ui-language.md`** (v1 chrome), and **`docs/primary-blueprint.md`**.
+
+**Phase 2+ chrome:** follow `docs/ui-language.md` and the v1 overlay at the top of `docs/wireframes.md` (five destinations, conversation vs writing density). Product implementation program: OpenSpec `ship-v1-e2e` (`docs/BUILD.md`).
 
 Use this doc when choosing libraries, scaffolding folders, or reviewing PRs.
 
@@ -13,7 +15,7 @@ Use this doc when choosing libraries, scaffolding folders, or reviewing PRs.
 | Refresh tokens | Required — `POST /auth/refresh`, proactive before SSE, mutex dedup |
 | Workspace switching | Deferred — `WorkspaceLabel` only at launch |
 | Automation | Abstract port + `NEXT_PUBLIC_AUTOMATION_ENABLED` feature flag |
-| Indexing UI | `indexing_status` from API — not tag heuristics |
+| Indexing UI | Lag UX until OpenAPI lists `indexing_status`; never infer from empty tags |
 | Editor | **Tiptap** from Phase 3 (MIT, no usage fees) |
 | Theme | **shadcn + `next-themes`** — dark default |
 | AI streaming | Custom SSE hooks — not Vercel AI SDK |
@@ -191,7 +193,7 @@ At launch:
 
 ```tsx
 // components/shell/WorkspaceLabel.tsx — read-only
-// GET /workspaces → match JWT wid → display name
+// GET /workspaces/me → display name
 ```
 
 Future:
@@ -241,21 +243,13 @@ Enable with `NEXT_PUBLIC_AUTOMATION_ENABLED=true` when `GET /ai/notifications/st
 
 ## Indexing status
 
-Use backend field — do not infer from empty tags:
+**Deferred field.** Until OpenAPI lists `indexing_status` on notes/files, show lag copy and refresh — do not poll a missing field. Never infer from empty tags. If the field ships, poll while `pending` | `processing`:
 
 ```ts
 type IndexingStatus = "pending" | "processing" | "indexed" | "failed";
 ```
 
-```ts
-// Poll while pending | processing
-refetchInterval: (query) =>
-  ["pending", "processing"].includes(query.state.data?.indexing_status)
-    ? 5000
-    : false;
-```
-
-See [backend-frontend-contract.md](./backend-frontend-contract.md#p0--indexing-status).
+See [backend-frontend-contract.md](./backend-frontend-contract.md) **Deferred — Indexing status**.
 
 ---
 
@@ -312,9 +306,11 @@ lib/hooks/ai/use-chat-stream.ts
 lib/hooks/ai/use-agent-stream.ts
 ```
 
-Chat: `token` → `metadata` (citations) → `[DONE]`
+Chat: parse `data:` JSON `type`: `token` → `metadata` (citations) → `[DONE]`
 
-Agent: `token` | `tool_start` | `tool_end` | `done` → `[DONE]`
+Agent: `type` `token` | `tool_start` | `tool_end` | `done` → `[DONE]`
+
+Live streams omit SSE `event:` lines. Do not switch on `event === 'token'`.
 
 ---
 
@@ -357,7 +353,8 @@ providers/
 
 ```bash
 # .env.local
-NEXT_PUBLIC_API_URL=http://127.0.0.1
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1
+# Alias accepted by the client: NEXT_PUBLIC_API_URL (same origin)
 NEXT_PUBLIC_AUTOMATION_ENABLED=false
 ```
 
@@ -402,7 +399,7 @@ Follow **`docs/primary-blueprint.md`** phases 0–9.
 | Phase | Gate |
 |-------|------|
 | 1 | Backend `POST /auth/refresh` |
-| 3–4 | Backend `indexing_status` on notes/files |
+| 3–4 | Indexing lag UX (optional `indexing_status` when OpenAPI lists it) |
 | 2 | `GET /health/ai` optional (404 OK) |
 | Automation | Set env flag when SSE + queue API ready |
 
@@ -415,7 +412,7 @@ Follow **`docs/primary-blueprint.md`** phases 0–9.
 - [ ] Refresh logic only in `token-refresh.ts`
 - [ ] 401 replay passes `isRetry: true`; second 401 does not call refresh
 - [ ] No tokens in logs or git
-- [ ] `indexing_status` used for badges (not tag heuristics)
+- [ ] `indexing_status` used for badges **only if** OpenAPI lists it (not tag heuristics)
 - [ ] Citations from SSE metadata only
 - [ ] Stream hooks call `guardStream()`
 - [ ] Automation behind feature flag

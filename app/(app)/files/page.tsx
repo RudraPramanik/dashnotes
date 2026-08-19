@@ -1,3 +1,5 @@
+import { FilesPageContent } from "@/components/files/FilesPageContent";
+
 export default function FilesPage() {
-  return <div>Files</div>;
+  return <FilesPageContent />;
 }

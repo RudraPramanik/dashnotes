@@ -5,6 +5,22 @@ Wireframe layouts for the DashNotes client, aligned with the current backend API
 **Stack (client):** Next.js 16 App Router · React 19 · Tailwind 4  
 **Tenancy:** JWT claims `sub`, `wid`, `role` — workspace scope never sent from client body/query on AI routes.
 
+**v1 chrome overlay (normative):** OpenSpec `lock-v1-ui-contract` + `docs/ui-language.md` win over marketplace sketches below. Visual language: conversation chrome on Chat/Agent, writing-first Notes.
+
+### v1 live chrome (ship this)
+
+- Nav: **Notes · Files · Chat · Agent · Settings**. Default landing `/notes`.
+- Agent is a **single destination** (Workspace Assistant → `/ai/agent*`). Do not show coming-soon specialist cards as live products.
+- Workspace name: read-only `GET /workspaces/me`. No switcher.
+- ContextPanel is a **slot**: Notes → meta; Files → file meta + lag copy; Chat → Sources from `metadata`; Agent → Tools from `tool_start` / `tool_end`.
+- Threads copy: **Your conversations** (current user).
+- First-run: inline empty Notes coach (create note → upload file → ask Chat). Prefill chat message only — never send `note_id` on chat body.
+- Citations: OpenAPI fields (`note_id`, `chunk_id`, `title`, `relevance_score`). No excerpts.
+
+### v1 deferred (not live chrome)
+
+Agent marketplace, automation inbox as primary nav, workspace switcher, required `indexing_status` badges, required `/health/ai` dot (404-safe if used), citation excerpts, Cmd-K as primary Q&A.
+
 ---
 
 ## Design principles
@@ -17,7 +33,7 @@ Wireframe layouts for the DashNotes client, aligned with the current backend API
 | Async AI pipeline | Processing badges on notes/files (~45s worker cycle) |
 | RBAC is visible | Private badges, role-gated actions, member vs admin views |
 | Graceful degradation | Banner when `/health/ai` or AI routes return **503**; notes/files still work |
-| Multi-agent ready | Agent hub + picker; each agent maps to its own backend route when added |
+| Multi-agent ready | **Deferred.** v1 nav is a single Agent item. Extra agent routes stay in the tree for later. |
 
 ---
 
@@ -35,13 +51,13 @@ Wireframe layouts for the DashNotes client, aligned with the current backend API
   /files/[fileId]
   /chat
   /chat/[threadId]
-  /agents                     ← agent hub (multi-agent entry)
-  /agents/[agentSlug]         ← e.g. workspace-assistant, research, writer
-  /agents/[agentSlug]/[threadId]
-  /search                     ← optional full-page; cmd-K palette preferred
+  /agents                     ← v1: redirect or land on Workspace Assistant (single agent)
+  /agents/workspace-assistant
+  /agents/workspace-assistant/[threadId]
+  /search                     ← deferred power-user; cmd-K not primary Q&A
   /settings/account
   /settings/workspace         ← owner/admin: members, roles
-  /settings/automation        ← future: approval inbox
+  /settings/automation        ← backlog — omit from primary nav while flag off
 ```
 
 ---
@@ -61,14 +77,11 @@ All authenticated routes share this frame.
 │  └─────────┘ │                                               │               │
 │              │                                               │  Citations    │
 │  Notes       │                                               │  Tool trace   │
-│  Notebooks   │                                               │  File meta    │
-│  Files       │                                               │  Note outline │
+│  Files       │                                               │  File meta    │
+│  ─────────   │                                               │  Note outline │
 │  ─────────   │                                               │               │
 │  Chat        │                                               │               │
-│  Agents  ▾   │                                               │               │
-│    Assistant │                                               │               │
-│    Research* │                                               │               │
-│    Writer*   │                                               │               │
+│  Agent       │                                               │               │
 │  ─────────   │                                               │               │
 │  Settings    │                                               │               │
 │              │                                               │               │
@@ -76,17 +89,17 @@ All authenticated routes share this frame.
 │              │                                               │               │
 └──────────────┴───────────────────────────────────────────────┴───────────────┘
 
-* future agents — shown greyed until backend route exists
+v1: no greyed future-agent rows
 ```
 
 **Shell behaviors**
 
-- **Workspace label (`Acme`):** `GET /workspaces` → display name for JWT `wid`. **Switching deferred at launch** — dropdown switcher added later with `POST /auth/switch-workspace` (see `backend-frontend-contract.md`).
+- **Workspace label (`Acme`):** `GET /workspaces/me` → display name. **Switching deferred at launch** — dropdown switcher added later with `POST /auth/switch-workspace` (see `backend-frontend-contract.md`).
 - **AI status (`AI ●`):** green = `/health/ai` ok; amber = degraded; red = unavailable. Tooltip explains Qdrant/LLM state.
 - **`[+ New ▾]`:** New note · Upload file · New chat · Ask agent (context-aware default).
 - **Context panel:** collapsible; auto-opens on chat (citations) and agent (tool trace).
 
-**Mobile (<768px):** bottom tab bar — Notes · Files · Chat · Agents · More. Context panel becomes bottom sheet.
+**Mobile (<768px):** bottom tab bar — Notes · Files · Chat · Agent · More. Context panel becomes bottom sheet.
 
 ---
 
@@ -390,7 +403,7 @@ On note mutation: toast + invalidate GET /notes cache
 │   "budget allocation"  → 3 notes, 1 file     [Open in Chat]│
 └────────────────────────────────────────────────────────────┘
 
-API: GET /ai/test-search?q=…&limit=5  (RBAC-filtered, workspace from JWT)
+API: POST /ai/test-search `{ query_text, limit? }`  (RBAC-filtered, workspace from JWT)
       + local fuzzy search on cached note/file lists
 Enter on AI result → prefill Chat with query or open top citation
 ```
@@ -498,13 +511,13 @@ Source: 429 + Retry-After header (global 100/min; login 5/min)
 | Screen | Primary endpoints |
 |--------|-------------------|
 | Login / Register | `POST /auth/login`, `POST /auth/register` |
-| Workspace label | `GET /workspaces` (read-only at launch) |
+| Workspace label | `GET /workspaces/me` (read-only at launch) |
 | Notes list / editor | `GET/POST/PATCH/DELETE /notes` |
 | Notebooks | `GET/POST/PATCH/DELETE /notebooks` |
 | Files library / detail | `GET /files`, `POST /files/upload`, download |
 | Chat | `GET /ai/threads`, `GET …/messages`, `DELETE …`, `POST /ai/chat/stream` |
 | Workspace Assistant | `POST /ai/agent/stream` |
-| Cmd-K search | `GET /ai/test-search` + cached lists |
+| Cmd-K search | `POST /ai/test-search` + cached lists |
 | Members admin | `GET/POST/PATCH/DELETE /workspaces/members` |
 | Health indicators | `GET /health`, `GET /health/ai` (optional) |
 

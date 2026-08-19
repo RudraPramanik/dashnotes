@@ -1,5 +1,7 @@
 ## DashNoteSystem backend (system workflow & routing)
 
+> **Client protocol:** For frontend integration, **`docs/backendGuide.md` and OpenAPI `{API_BASE}/docs` supersede this file.** This document is backend internals and may drift (e.g. older `GET /ai/test-search`). Live client routes: `POST /ai/test-search` `{ query_text, limit? }`; current workspace `GET /workspaces/me`.
+
 ### Overview
 
 Multi-tenant **Notes backend**: **FastAPI + async SQLAlchemy**. JWT auth builds workspace-aware **`RequestContext`**:
@@ -23,7 +25,7 @@ Registers routers and global dependencies:
 | `notes/router.py` | `/notes` | Enqueues embed jobs + emits `NoteCreatedEvent` when `ai_enabled` |
 | `workspaces/router.py` | `/workspaces` | |
 | `membership/router.py` | `/workspaces/members` | |
-| `ai_gateway/search.py` | `/ai` | `GET /ai/test-search` |
+| `ai_gateway/search.py` | `/ai` | `POST /ai/test-search` |
 | `ai_routes/chat.py` | `/ai` | `POST /ai/chat`, `POST /ai/chat/stream` |
 | `ai_routes/threads.py` | `/ai` | Thread list, messages, delete |
 | `ai_routes/agent.py` | `/ai` | `POST /ai/agent`, `POST /ai/agent/stream` |
@@ -196,7 +198,7 @@ Multi-tenant note embeddings: chunk → Redis cache → LiteLLM → **Qdrant** (
 | Qdrant search | **`WorkspaceVectorSearch`** in `ai/retrieval/wrapper.py` only — never `AsyncQdrantClient` in routers |
 | Qdrant writes | `WorkspaceVectorIndex` + `NoteVectorIndexer` (notes); `WorkspaceFileVectorIndex` + `FileVectorIndexer` (files) — worker/indexer path only |
 | RBAC filter | `build_rbac_filter()` in `ai/retrieval/filters.py` — mirrors `notes/permissions.py` exactly |
-| Routers | Test: **`GET /ai/test-search`**; chat: **`POST /ai/chat`**, **`POST /ai/chat/stream`**; agent: **`POST /ai/agent`**, **`POST /ai/agent/stream`** |
+| Routers | Test: **`POST /ai/test-search`**; chat: **`POST /ai/chat`**, **`POST /ai/chat/stream`**; agent: **`POST /ai/agent`**, **`POST /ai/agent/stream`** |
 | Services | **`RagService.answer()`** / **`stream_answer()`** — plain `workspace_id` / `user_id` / `role` strings only |
 | Streaming | SSE citations in final `metadata` event only — never parsed from token stream |
 | Memory ORM | **`src/ai_memory/`** — `AIThread`, `AIMessage`; never import SQLAlchemy from `src/ai/*` |
@@ -388,13 +390,13 @@ Resilience for automation LLM calls and agent `call_model`. Blueprint: `docs/doc
 
 Point id = UUID from deterministic `chunk_id`.
 
-### HTTP — `GET /ai/test-search` (`ai_gateway/search.py`)
+### HTTP — `POST /ai/test-search` (`ai_gateway/search.py`)
 
 Auth: Bearer JWT → `RequestContext`. **503** when `ai_enabled` or `qdrant_enabled` is false.
 
-| Query | Rule |
-|-------|------|
-| `q` | 1–500 chars |
+| Body | Rule |
+|------|------|
+| `query_text` | 1–500 chars |
 | `limit` | 1–20, default 5 |
 | `workspace_id` | **Never accepted** — always JWT `wid` |
 

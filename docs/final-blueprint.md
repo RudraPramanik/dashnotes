@@ -2,14 +2,36 @@
 
 Phase-by-phase implementation guide for Cursor Agent mode.
 
+## Protocol overlay (API truth)
+
+This file is the **implementation playbook** (session order, file paths, validation). It does **not** own the live API.
+
+**Precedence** (higher wins on routes, methods, JSON fields):
+
+1. OpenAPI `{API_BASE}/docs`
+2. `docs/backendGuide.md` (synced from sibling `dashnotesystemv1/docs/documentation/frontendguide.md`)
+3. This playbook + `docs/update_blueprint.md` (architecture patches for listed steps)
+
+| Topic | Live protocol | Do not follow this playbook if it says |
+|-------|---------------|----------------------------------------|
+| Chat/agent SSE | `data:` JSON with `type` (`token`, `metadata`, `error`, agent `tool_start` / `tool_end` / `done`); close on `[DONE]` | SSE named `event: token` / `if event === 'token'` |
+| Citations | OpenAPI / guide: `note_id`, `chunk_id`, `title`, `relevance_score` | Invented `source_id`, `excerpt` |
+| Current workspace | `GET /workspaces/me` | `GET /workspaces` list |
+| Diagnostic search | `POST /ai/test-search` `{ query_text, limit? }` | `GET /ai/test-search?q=` |
+| Indexing / AI health / switch-workspace / automation SSE | Wishlist until OpenAPI lists them | Required `indexing_status`, required `/health/ai` |
+
+`docs/update_blueprint.md` still supersedes listed architecture steps (1.6 retry helper, 2.2 / 2.9 / 2.11, ContextPanel slot). Protocol overlay still applies inside those steps.
+
 **Source of truth (attach with `@` — do not duplicate in prompts):**
 
 | Doc | Use |
 |-----|-----|
+| `docs/backendGuide.md` + OpenAPI | Live API / UX laws |
 | `docs/final-blueprint.md` | This file — step prompts + validation |
+| `docs/update_blueprint.md` | Architecture v3 patches for listed steps |
 | `docs/primary-blueprint.md` | Phase goals and exit criteria |
 | `docs/frontend-stack.md` | Libraries and patterns |
-| `docs/backend-frontend-contract.md` | Auth, indexing, API contracts |
+| `docs/backend-frontend-contract.md` | Live vs deferred integration |
 | `docs/wireframes.md` | UI layout |
 | `PROGRESS.md` | Current slice + branch (update after each step PASS) |
 
@@ -167,7 +189,7 @@ HARD RULES — read before writing any code:
 3. NEVER use `any` type in TypeScript. All types must be explicit.
 4. NEVER use `localStorage` for tokens. Access token → sessionStorage key `dashnotes_at`. Refresh token → Zustand memory only.
 5. NEVER send workspace_id on /ai/* routes. Tenant comes from JWT only.
-6. NEVER parse citations from SSE token stream. Citations come from the metadata event only.
+6. NEVER parse citations from SSE token stream. Identify frames by JSON `type` in `data:` lines — not SSE `event:` names. Citations from `metadata` only. OpenAPI citation fields (not `source_id`/`excerpt`).
 7. NEVER use a Zustand store for server data that TanStack Query already owns.
 8. ALL React components must be named exports, except page.tsx files (default export allowed).
 9. ALL async functions must have explicit return types.
@@ -177,7 +199,7 @@ HARD RULES — read before writing any code:
 13. apiClient 401 handling MUST use isRetry circuit breaker — second 401 NEVER calls refresh (see Step 1.6).
 14. apiClient MUST import handleUnauthorized from lib/auth/token-refresh.ts — never inline clearSession on first 401.
 15. Do NOT wrap (app)/layout main content in GlobalErrorBoundary — it lives only in app/layout.tsx.
-16. Follow docs/backend-frontend-contract.md for auth refresh and indexing_status fields.
+16. Follow docs/backend-frontend-contract.md for auth refresh (live). Do not require indexing_status until OpenAPI lists it. Protocol overlay at top of this file applies to all steps.
 ```
 
 ---
@@ -588,7 +610,7 @@ FUNCTION 2: isTokenExpiredOrExpiringSoon(token: string, bufferSeconds = 60): boo
 - Returns true if exp is 0 (decode failed = treat as expired)
 
 FUNCTION 3: refreshAccessToken(refreshToken: string): Promise<TokenPair>
-- POST to process.env.NEXT_PUBLIC_API_URL + '/auth/refresh'
+- POST to (process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL) + '/auth/refresh'
 - Body: { refresh_token: refreshToken }
 - Headers: Content-Type: application/json
 - On 200: return { accessToken: data.access_token, refreshToken: data.refresh_token }
@@ -800,8 +822,8 @@ export async function getNotebooks(): Promise<unknown>
 export async function getNotebook(id: string): Promise<unknown>
 
 FILE: lib/api/workspaces.ts
-export async function getWorkspaces(): Promise<unknown>
-export async function updateWorkspace(data: { name: string }): Promise<unknown>
+export async function getCurrentWorkspace(): Promise<unknown> // GET /workspaces/me
+export async function updateWorkspace(data: { name: string }): Promise<unknown> // PATCH /workspaces/me
 export async function getMembers(): Promise<unknown>
 export async function inviteMember(data: { email: string; role: string }): Promise<unknown>
 export async function updateMemberRole(userId: string, role: string): Promise<unknown>
@@ -813,7 +835,7 @@ export async function getThreadMessages(threadId: string): Promise<unknown>
 export async function deleteThread(threadId: string): Promise<void>
 
 FILE: lib/api/ai/search.ts
-export async function testSearch(q: string, limit = 5): Promise<unknown>
+export async function testSearch(queryText: string, limit = 5): Promise<unknown> // POST /ai/test-search { query_text, limit }
 
 FILE: lib/api/ai/chat.ts — stub only:
 // Chat uses SSE — see lib/hooks/ai/use-chat-stream.ts
@@ -1090,9 +1112,9 @@ FILE: lib/hooks/use-current-workspace.ts
 - "use client" directive
 - Named export: useCurrentWorkspace
 - Uses useAuthStore to get workspaceId
-- Uses useQuery(queryKeys.workspaces()) to fetch workspace list
+- Uses useQuery(queryKeys.workspaces()) to fetch GET /workspaces/me (current workspace — not a list GET /workspaces)
 - Returns: { name: string | null, id: string | null, isLoading: boolean }
-- Finds the workspace matching workspaceId from the list
+- Uses the me payload name (and JWT wid for id)
 - Falls back to 'Workspace' if not found
 
 FILE: components/shell/WorkspaceLabel.tsx
@@ -1125,7 +1147,7 @@ node -e "const fs=require('fs'); ['lib/hooks/use-current-workspace.ts','componen
 ### Step 2.5 — AI health indicator
 
 ```
-TASK: Build AI health monitoring components.
+TASK: Build AI health monitoring components. GET /health/ai is **deferred / optional**. A 404 MUST NOT fail the app shell, notes, or files.
 
 FILE: lib/hooks/use-ai-health.ts
 - "use client" directive
@@ -1175,7 +1197,7 @@ node -e "const fs=require('fs'); ['lib/hooks/use-ai-health.ts','components/shell
 ### Step 2.6 — Automation abstraction layer
 
 ```
-TASK: Build the automation abstraction with port/stub pattern. No backend connection yet — zero-cost stub is default.
+TASK: Build the automation abstraction with port/stub pattern. Automation SSE + queue APIs are **deferred** — not in OpenAPI. No backend connection yet — zero-cost stub is default. 404 on pending count MUST NOT fail the shell.
 
 FILE: lib/automation/config.ts
 export const automationConfig = {
@@ -1490,7 +1512,7 @@ node -e "const p=require('./package.json'); ['@tiptap/react','@tiptap/starter-ki
 ### Step 3.2 — Indexing status utility
 
 ```
-TASK: Build the indexing status display utility. This reads indexing_status from the API — never inferred from tags.
+TASK: Build the indexing status display utility. `indexing_status` is **optional** until OpenAPI lists it. Never infer from tags. Missing field is not a failure.
 
 FILE: lib/utils/indexing-status.ts
 - Plain TypeScript module
@@ -1508,14 +1530,14 @@ export function getIndexingDisplay(status: IndexingStatus | undefined | null): B
 - 'processing': { label: '⏳ Indexing…', variant: 'secondary', showSpinner: true }
 - 'indexed': { label: '✓ Indexed', variant: 'default', showSpinner: false }
 - 'failed': { label: 'Index failed', variant: 'destructive', showSpinner: false }
-- undefined/null: { label: '⏳ Pending', variant: 'secondary', showSpinner: false }
+- undefined/null: { label: '⏳ Indexing…', variant: 'secondary', showSpinner: true }  // lag UX; field not required
 
 export function shouldPoll(status: IndexingStatus | undefined | null): boolean
-- Returns true when status is 'pending' or 'processing'
-- Returns false when 'indexed', 'failed', or unknown
+- Returns true ONLY when status is 'pending' or 'processing' (field present)
+- Returns false when 'indexed', 'failed', **undefined, null, or unknown** — do not poll a missing field
 
 RULES:
-- Never infer indexing from tags being empty — only from indexing_status field
+- Never infer indexing from tags being empty
 - This file has zero React imports — pure TypeScript
 ```
 
@@ -1550,8 +1572,9 @@ FILE: lib/hooks/notes/use-note.ts
 - "use client" directive
 - Named export: useNote(id: string)
 - useQuery(queryKeys.note(wid, id), () => getNote(id))
-- refetchInterval: computed — if shouldPoll(note.indexing_status): 5000, else false
+- refetchInterval: computed — if note has indexing_status AND shouldPoll(note.indexing_status): 5000, else false (do not poll when the field is absent)
 - POLLING TIMEOUT: track first poll time with useRef; after 3 minutes (180_000ms), set a local exceeded state, stop polling regardless
+- After create/update: show indexing-lag copy even when indexing_status is missing (backendGuide §6.1)
 - Returns: { note, isLoading, isError, pollingExceeded: boolean }
 
 FILE: lib/hooks/notes/use-note-mutations.ts
@@ -1747,7 +1770,7 @@ FILE: lib/hooks/files/use-file-upload.ts
 - xhr.onload: on 200/201 → invalidate queryKeys.files(wid) + toastSuccess('File uploaded') + call onSuccess callback
 - xhr.onerror: set error state
 - Sets Authorization: Bearer header from auth store (useAuthStore.getState().accessToken)
-- URL: process.env.NEXT_PUBLIC_API_URL + '/files/upload'
+- URL: (process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL) + '/files/upload'
 - Sends as FormData: file, is_private, description
 
 RULES:
@@ -1777,7 +1800,8 @@ FILE: lib/hooks/files/use-files.ts
 - Same pattern as use-notes.ts
 
 FILE: lib/hooks/files/use-file.ts
-- Same polling pattern as use-note.ts (shouldPoll on indexing_status, 3min timeout)
+- Same optional-field polling as use-note.ts (shouldPoll only when indexing_status is present; 3min timeout)
+- After upload: indexing-lag copy even if the field is missing
 - Returns: { file, isLoading, isError, pollingExceeded }
 ```
 
@@ -1913,7 +1937,7 @@ FILE: lib/hooks/ai/use-chat-stream.ts
 - Named export: useChatStream(initialThreadId?: string)
 
 Types:
-type Citation = { source_id: string; title: string; score: number; excerpt: string; type: 'note' | 'file' }
+type Citation = { note_id: string; chunk_id: string; title: string; relevance_score: number }  // OpenAPI — do not require source_id/excerpt
 type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string; id: string }
 
 State:
@@ -1932,10 +1956,12 @@ sendMessage(message: string): Promise<void>
 4. Append empty assistant message placeholder
 5. Set isStreaming: true, error: null, citations: []
 6. const res = await apiClient.stream(CHAT_STREAM_PATH, { message, thread_id: threadId ?? undefined }, abortRef.current.signal)
-7. for await (const { event, data } of parseSseStream(res.body!)):
+7. for await (const { data } of parseSseStream(res.body!)):
    - if data === '[DONE]': break
-   - if event === 'token': append data to last assistant message content
-   - if event === 'metadata': parse JSON → set citations, set threadId from meta.thread_id
+   - parse JSON from data (live API uses data: {"type":"..."} — SSE event field is usually "message")
+   - if payload.type === 'token' && payload.content: append payload.content to last assistant message
+   - if payload.type === 'metadata': set citations from payload.citations; set threadId from payload.thread_id
+   - if payload.type === 'error': set error from payload.message
 8. After stream: set isStreaming: false
 9. After threadId received: invalidate queryKeys.threads(wid)
 10. catch (err): 
@@ -1951,7 +1977,8 @@ AbortController in useRef — NOT useState
 Cleanup on unmount: cancel()
 
 RULES:
-- Citations ONLY from metadata event — never from token stream content
+- Citations ONLY from type === 'metadata' — never from token stream content
+- Do NOT switch on SSE event === 'token' (live streams omit event: lines)
 - error state shows inline in UI — NOT as toast (user is in chat view)
 - AiUnavailableError message exactly matches backend: "LLM temporarily unavailable; retry shortly"
 - guardStream() called first — any token refresh happens before stream opens
@@ -1959,7 +1986,7 @@ RULES:
 
 **Validation:**
 ```bash
-node -e "const fs=require('fs'); const h=fs.readFileSync('lib/hooks/ai/use-chat-stream.ts','utf8'); if(!h.includes('guardStream')) throw new Error('Missing guardStream call'); if(!h.includes('metadata')) throw new Error('Missing metadata event handler'); if(h.includes('token') && h.includes('citation')) { const tokenIdx=h.indexOf(\"event === 'token'\"); const citIdx=h.indexOf('citations'); if(citIdx < tokenIdx + 50 && citIdx > tokenIdx - 50) throw new Error('VIOLATION: citations must only come from metadata event'); } if(!h.includes('AbortController')) throw new Error('Missing AbortController'); if(!h.includes('AiUnavailableError')) throw new Error('Missing AiUnavailableError handling'); console.log('5.2 PASS')"
+node -e "const fs=require('fs'); const h=fs.readFileSync('lib/hooks/ai/use-chat-stream.ts','utf8'); if(!h.includes('guardStream')) throw new Error('Missing guardStream call'); if(!h.includes('metadata')) throw new Error('Missing metadata event handler'); if(h.includes(\"event === 'token'\")) throw new Error('VIOLATION: parse JSON type from data, not SSE event names'); if(!h.includes('AbortController')) throw new Error('Missing AbortController'); if(!h.includes('AiUnavailableError')) throw new Error('Missing AiUnavailableError handling'); console.log('5.2 PASS')"
 ```
 
 ---
@@ -2101,14 +2128,16 @@ Additional state vs chat:
 - stepsTaken: number
 - toolCallsMade: number
 
-SSE events handled (in addition to token):
-- 'tool_start': parse JSON → add { name, params, status: 'running', stepIndex } to toolEvents
-- 'tool_end': parse JSON → update matching tool event to status: 'complete'
+SSE frames: parse JSON from `data` and switch on `payload.type` (live API does not set SSE `event:`):
+- type 'token': append content (same as chat)
+- type 'tool_start': add { name: tool, params: args, status: 'running', stepIndex } to toolEvents
+- type 'tool_end': update matching tool event to status: 'complete'
   → If tool name is 'create_note' or 'update_note': 
     → invalidate queryKeys.notes(wid)
     → toastSuccess(name === 'create_note' ? 'Note created by agent' : 'Note updated by agent')
-- 'done': parse JSON → set stepsTaken and toolCallsMade
-- 'tool_start' for failed tool: add with status: 'failed'
+- type 'done': set stepsTaken and thread_id
+- type 'error': user-visible error; MAY suggest falling back to chat
+- Do NOT use `event === 'token'`
 
 Everything else identical to use-chat-stream (guardStream, abort, error handling).
 
@@ -2116,6 +2145,7 @@ RULES:
 - Tool mutations (create_note, update_note) MUST invalidate notes query + show toast
 - guardStream() called before stream (same as chat)
 - toolEvents array: new tool_start appends; tool_end finds by name+stepIndex and updates
+- Citations/types from OpenAPI — not invented source_id fields
 ```
 
 **Validation:**
@@ -2260,7 +2290,7 @@ node -e "const p=require('./package.json'); if(!p.dependencies['cmdk']) throw ne
 TASK: Fill search API and build command palette hook.
 
 Fill lib/api/ai/search.ts:
-- testSearch: GET /ai/test-search?q={q}&limit={limit}
+- testSearch: POST /ai/test-search body { query_text, limit? } (not GET ?q=)
 - On 503: return [] (graceful — palette still works without AI)
 
 FILE: lib/hooks/use-command-palette.ts
@@ -2296,7 +2326,7 @@ FILE: components/shell/CommandPalette.tsx
 - Uses shadcn Command + CommandDialog
 - Reads paletteOpen from shell store; onOpenChange → setPaletteOpen
 - Sections:
-  → RECENT: last 5 from local results (track with useRef/localStorage — 5 recently visited)
+  → RECENT: last 5 from local results (track with useRef or sessionStorage key `dashnotes_recent` — never localStorage)
   → ACTIONS: New note, Upload file, New chat, Ask agent — navigation actions
   → AI SEARCH: aiResults list with "Open in Chat" action (navigates to /chat with query)
   → LOCAL SEARCH: localResults list
@@ -2551,7 +2581,7 @@ TASK: Run final security checks.
 
 1. Confirm .gitignore includes: .env.local, .env*, .model.env
 2. Confirm no OPENAI_API_KEY, GEMINI_API_KEY, or NVIDIA_API_KEY in any Next.js file
-3. Confirm NEXT_PUBLIC_* vars contain only: NEXT_PUBLIC_API_URL, NEXT_PUBLIC_AUTOMATION_ENABLED
+3. Confirm NEXT_PUBLIC_* vars contain only: NEXT_PUBLIC_API_BASE_URL (and/or alias NEXT_PUBLIC_API_URL), NEXT_PUBLIC_AUTOMATION_ENABLED
 4. Confirm refreshToken is never written to any storage (search codebase for localStorage and sessionStorage — only 'dashnotes_at' should appear in sessionStorage calls)
 5. Confirm no console.log statements include token values
 ```

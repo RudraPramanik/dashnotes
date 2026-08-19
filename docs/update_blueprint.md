@@ -1,5 +1,21 @@
 # DashNotes — Cursor Agent Prompts (v3 patch — resume from 1.7)
 
+## Protocol overlay (API truth)
+
+This file **supersedes** matching architecture sections of `docs/final-blueprint.md`. It does **not** own the live API.
+
+**Precedence:** OpenAPI `{API_BASE}/docs` → `docs/backendGuide.md` → this patch / `docs/final-blueprint.md`.
+
+**v1 UI overlay:** `docs/ui-language.md` + the v1 section of `docs/wireframes.md` (OpenSpec `lock-v1-ui-contract`) overlay marketplace sketches for chrome. Session order in this file and `docs/final-blueprint.md` is unchanged unless implementing OpenSpec `ship-v1-e2e`, which follows that change’s `tasks.md` through B-gate (still must complete 1.7–1.11 before the shell).
+
+| Topic | Live protocol |
+|-------|----------------|
+| Chat/agent SSE | Parse `JSON.parse(data).type` (`token`, `metadata`, `error`, `tool_start`, `tool_end`, `done`). Live streams omit SSE `event:` lines. |
+| Citations | `note_id`, `chunk_id`, `title`, `relevance_score` (OpenAPI) — not `source_id` / `excerpt` |
+| Current workspace | `GET /workspaces/me` |
+| Diagnostic search | `POST /ai/test-search` `{ query_text, limit? }` |
+| `indexing_status`, `GET /health/ai`, switch-workspace, automation SSE | Deferred until OpenAPI lists them |
+
 This file **supersedes** the equivalent sections of `CURSOR_PROMPTS.md` (v2).
 Everything through **Step 1.7 is already built and unchanged** — do not redo it.
 This document contains:
@@ -13,7 +29,8 @@ This document contains:
 4. A changelog table so Cursor (and you) can see exactly what moved.
 
 Everything **not** listed in the changelog is unchanged — keep using the v2
-prompt text for those steps as-is.
+prompt text for those steps as-is, **except** where the protocol overlay above
+overrides API wire format.
 
 ---
 
@@ -26,7 +43,8 @@ prompt text for those steps as-is.
 | 2.6 | **Cleaned** | Prompt text for `notification-sse.ts` contained a self-contradicting draft note about EventSource. Rewritten as a clean spec (behavior unchanged; still stub-by-default). |
 | **2.11 (new)** | **Added** | Gate: generate real OpenAPI types before any component types `unknown`. Prevents `unknown`/`as` casts from spreading through Phases 3–8. |
 | 2.9 | **Revised** | `app/(app)/layout.tsx` was `"use client"` just to host two hook calls, forcing the entire shell subtree client-side. Layout is now a Server Component; hooks move into a new invisible client leaf, `AppShellEffects`. |
-| 3.3 / 4.3 | **Revised** | `use-note.ts` and `use-file.ts` each hand-rolled identical 3-minute polling-timeout logic. Extracted into shared `use-indexing-poll.ts`. |
+| 5.2 / 6.1 | **Protocol** | Parse `JSON.parse(data).type` — live SSE has no `event:` names. Citations use OpenAPI fields. See `docs/final-blueprint.md` patched prompts. |
+| 3.3 / 4.3 | **Revised** | `use-note.ts` and `use-file.ts` each hand-rolled identical 3-minute polling-timeout logic. Extracted into shared `use-indexing-poll.ts`. Poll only when `indexing_status` is present. |
 | 3.4 | **Revised** | `NoteEditor.tsx` carried seven responsibilities in one file. Split into four single-purpose components composed by a thin `NoteEditor` shell. |
 | Shell `ContextPanel` (touches 3.4, 4.5, 5.3, 5.4, 6.2, 6.4, 2.9) | **Revised** | `ContextPanel` was a switch statement importing every feature's panel component (chat, agent, files, notes) — a hub, and a hidden dependency magnet. It's now a plain slot (`{ children }`); each page renders its own panel content into it. Removes the `contextPanelContent` enum and the shell-store citation/tool-trace duplication in one move. |
 

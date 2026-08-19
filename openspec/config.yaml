@@ -6,12 +6,14 @@ context: |
   This repo: Next.js 16 App Router frontend for the DashNoteSystem FastAPI backend (sibling/API repo).
   Do not invent backend routes — OpenAPI at {API_BASE}/docs is normative for JSON fields.
 
-  Doc map:
-  - docs/backendGuide.md — frontend-facing product map, auth, domain APIs, AI SSE, ops UX
-  - docs/frontend-stack.md — locked stack and architecture principles
-  - docs/backend-frontend-contract.md — auth refresh, indexing_status, contracts
-  - AGENTS.md — hard coding guardrails (always apply)
-  - PROGRESS.md + docs/steps/P*.md — implementation schedule; do not skip ahead
+  Doc map (protocol precedence: OpenAPI → docs/backendGuide.md → playbook):
+    - docs/backendGuide.md — live UX/API laws (SSE JSON type, tenancy, errors); synced from sibling frontendguide.md
+    - docs/final-blueprint.md — implementation playbook (session order); protocol overlay at top
+    - docs/update_blueprint.md — architecture v3 patches for listed steps
+    - docs/frontend-stack.md — locked stack and architecture principles
+    - docs/backend-frontend-contract.md — live (refresh, 401) vs deferred (indexing_status, health/ai, switch-workspace, automation SSE)
+    - AGENTS.md — hard coding guardrails (always apply)
+    - PROGRESS.md + docs/steps/P*.md — implementation schedule; do not skip ahead
 
   Stack: Next.js 16, React 19, TypeScript, Tailwind 4, shadcn/ui + Radix, next-themes (dark default),
   TanStack Query v5 (server state), Zustand (auth/shell only), RHF + Zod, fetch apiClient,
@@ -24,12 +26,12 @@ context: |
   - Access token → sessionStorage key dashnotes_at; refresh → Zustand memory only; never localStorage for tokens
   - Never send workspace_id on /ai/* — tenant from JWT wid only
   - Chat ≠ Agent — separate UI modes and SSE parsers
-  - Citations only from SSE metadata events — never parse token stream
+  - Citations only from SSE metadata payloads (JSON type in data: lines) — never parse token stream; never use SSE event: names as the discriminator
   - apiClient 401: isRetry circuit breaker; handleUnauthorized from lib/auth/token-refresh.ts
   - No Zustand store for server data TanStack Query owns
   - Named React exports (except page.tsx default); explicit async return types; no any
   - Loading, empty, and error states required on UI surfaces
-  - indexing_status from API — not tag heuristics; workspace switching deferred at launch
+  - Indexing lag UX without requiring indexing_status until OpenAPI lists it; workspace switching deferred at launch
 
 rules:
   proposal:
