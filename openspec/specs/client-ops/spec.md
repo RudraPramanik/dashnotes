@@ -52,6 +52,11 @@ The client MAY call `GET /health/ai` when present. A `404` MUST NOT be treated a
 - **THEN** the client MUST NOT block the app shell or notes/files surfaces
 - **AND** MUST NOT surface the 404 as a generic fatal error
 
+#### Scenario: Other environment without health/ai
+- **WHEN** `GET /health/ai` returns `404` on an environment other than the Docker stack whose OpenAPI lists the route
+- **THEN** the shell MUST still render
+- **AND** MUST infer AI problems from `/ai/*` `503` or SSE errors
+
 ### Requirement: Public API origin env
 The client MUST document and use a single public API origin variable matching the backend frontend guide (`NEXT_PUBLIC_API_BASE_URL`). If existing code uses `NEXT_PUBLIC_API_URL`, docs and runtime MUST alias or migrate so agents do not split origin configuration. No long-lived secrets SHALL appear in `NEXT_PUBLIC_*`.
 
@@ -59,3 +64,11 @@ The client MUST document and use a single public API origin variable matching th
 - **WHEN** the Next.js app calls the FastAPI backend in local Compose
 - **THEN** the origin MUST resolve to the documented API base (typically `http://127.0.0.1`)
 - **AND** MUST NOT require a second undocumented public env for the same origin
+
+### Requirement: E2E respects indexing lag
+Automated tests and UI MUST wait or retry for a short window after note create or file upload before concluding RAG cannot find the content. They MUST NOT require `indexing_status` unless OpenAPI lists it on the note/file schema.
+
+#### Scenario: Playwright after upload
+- **WHEN** a B-gate test uploads a file and then asks Chat
+- **THEN** the test MUST allow tens of seconds of lag
+- **AND** MUST NOT treat an immediate empty citation list as a hard product failure
