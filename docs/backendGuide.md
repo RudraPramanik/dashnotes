@@ -1,18 +1,22 @@
-# DashNoteSystem — Frontend Developer Guide
+# DashNotes — Backend protocol (synced)
 
-Build a **Next.js** (App Router) client against the DashNoteSystem FastAPI backend. This guide is for humans and AI agents: product map, auth, domain APIs, AI streaming contracts, errors/CORS, and the B-gate checklist.
+This file is the **DashNotes copy of the backend frontend protocol**. OpenAPI at `{API_BASE}/docs` is normative for JSON fields. Do not invent backend routes.
 
-**This repo is API-only.** The frontend lives in a sibling repo or a future `frontend/` folder. Do not invent backend routes — verify schemas against OpenAPI.
+**Source (sibling, parent workspace):** `../dashnotesystemv1/docs/documentation/frontendguide.md`  
+Re-sync from that file when the API contract changes. A lower-precedence playbook (`docs/final-blueprint.md`) MUST NOT override this file or OpenAPI on routes, methods, or JSON fields.
+
+**DashNotes token storage (stricter than backend demo guidance):** Access token → `sessionStorage` key `dashnotes_at`. Refresh token → Zustand memory only. **Never** `localStorage` for tokens.
 
 **Related docs**
 
 | Doc | Use when |
 |-----|----------|
-| [system.md](./system.md) | Routing, request lifecycle, modules |
-| [auth.md](./auth.md) | JWT claims, refresh/blacklist, `RequestContext` |
-| [ai.md](./ai.md) | AI laws, RAG vs agent, settings |
-| [blueprint/goal.md](./blueprint/goal.md) §B | Frontend ship checklist |
+| This file | UX/API laws (SSE, tenancy, errors, CORS) |
 | OpenAPI `/docs` | **Normative** request/response field lists |
+| [final-blueprint.md](./final-blueprint.md) | Implementation playbook (session order) |
+| [update_blueprint.md](./update_blueprint.md) | Architecture v3 patches |
+| [backend-frontend-contract.md](./backend-frontend-contract.md) | Live vs deferred integration |
+| Sibling `dashnotesystemv1/docs/documentation/system.md` | Backend routing internals |
 
 **Local API base (typical):** `http://127.0.0.1` (Nginx → API) or `http://127.0.0.1:8000` if calling the API container directly.  
 **OpenAPI:** `{API_BASE}/docs`
@@ -117,14 +121,14 @@ const res = await fetch(`${API_BASE}/notes`, {
 
 On `401`, try `POST /auth/refresh` with the stored refresh token; on failure, send the user to login. On logout, call `POST /auth/logout` with the access Bearer (and refresh in body when available).
 
-### 3.3 Next.js token storage (guidance)
+### 3.3 Next.js token storage (DashNotes)
 
-| Approach | Notes |
-|----------|--------|
-| Memory + refresh in httpOnly cookie via Route Handler BFF | Stronger XSS posture; more setup |
-| `localStorage` / session for tokens | Simple demos; XSS can steal tokens — acceptable only for local/portfolio demos if you accept the risk |
+| Token | Where |
+|-------|--------|
+| Access | Zustand + `sessionStorage` key `dashnotes_at` |
+| Refresh | Zustand memory only (never `sessionStorage`, never `localStorage`) |
 
-Do **not** put long-lived secrets in `NEXT_PUBLIC_*`. Use `NEXT_PUBLIC_API_BASE_URL` for the API origin only.
+Do **not** put tokens in `localStorage`. Do **not** put long-lived secrets in `NEXT_PUBLIC_*`. Use `NEXT_PUBLIC_API_BASE_URL` for the API origin (DashNotes also accepts alias `NEXT_PUBLIC_API_URL`).
 
 ### 3.4 RBAC — what the UI should allow
 
@@ -393,7 +397,7 @@ Chat/agent stream responses set `Cache-Control: no-cache` and `X-Accel-Buffering
 
 ## 7. B-gate checklist & demo path
 
-Aligned with [goal.md](./blueprint/goal.md) §B.
+Aligned with backend B-gate (sibling `dashnotesystemv1/docs/documentation/blueprint/goal.md` §B).
 
 | # | Task | Done when |
 |---|------|-----------|

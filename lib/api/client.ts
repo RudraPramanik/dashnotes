@@ -7,6 +7,9 @@ export type ApiError = {
   retryAfter?: number;
 };
 
+export const RATE_LIMIT_EVENT = "dashnotes-rate-limited";
+export const AI_UNAVAILABLE_EVENT = "dashnotes-ai-unavailable";
+
 export class AiUnavailableError extends Error {
   status = 503;
 
@@ -14,6 +17,34 @@ export class AiUnavailableError extends Error {
     super(message);
     this.name = "AiUnavailableError";
   }
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  if (!("status" in error) || !("message" in error)) {
+    return false;
+  }
+  return typeof error.status === "number" && typeof error.message === "string";
+}
+
+function notifyRateLimited(retryAfter?: number): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.dispatchEvent(
+    new CustomEvent(RATE_LIMIT_EVENT, {
+      detail: { retryAfter: retryAfter ?? 60 },
+    }),
+  );
+}
+
+function notifyAiUnavailable(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.dispatchEvent(new Event(AI_UNAVAILABLE_EVENT));
 }
 
 type RequestOptions = {
@@ -25,7 +56,8 @@ type RequestOptions = {
 };
 
 function getBaseUrl(): string {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+  const baseUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL;
   if (!baseUrl) {
     throw {
       status: 0,
@@ -92,17 +124,20 @@ async function throwForErrorResponse(
       ? Number.parseInt(retryAfterHeader, 10)
       : undefined;
 
+    const retryAfter =
+      parsedRetryAfter !== undefined && !Number.isNaN(parsedRetryAfter)
+        ? parsedRetryAfter
+        : undefined;
+    notifyRateLimited(retryAfter);
     throw {
       status: 429,
       message: "Rate limited",
-      retryAfter:
-        parsedRetryAfter !== undefined && !Number.isNaN(parsedRetryAfter)
-          ? parsedRetryAfter
-          : undefined,
+      retryAfter,
     } satisfies ApiError;
   }
 
   if (response.status === 503 && path.startsWith("/ai/")) {
+    notifyAiUnavailable();
     throw new AiUnavailableError();
   }
 
@@ -155,6 +190,26 @@ async function executeWithAuthRetry<T>(
   return onResponse(second, true);
 }
 
+function createFormAttempt(
+  path: string,
+  form: FormData,
+  signal?: AbortSignal,
+): (isRetry: boolean) => Promise<Response> {
+  return (): Promise<Response> => {
+    const headers: Record<string, string> = {};
+    const accessToken = useAuthStore.getState().accessToken;
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
+    return fetch(`${getBaseUrl()}${path}`, {
+      method: "POST",
+      headers,
+      body: form,
+      signal,
+    });
+  };
+}
+
 function createAttempt(
   path: string,
   options: RequestOptions,
@@ -177,7 +232,16 @@ async function request<T>(path: string, options: RequestOptions): Promise<T> {
         await throwForErrorResponse(res, path);
       }
 
-      return (await res.json()) as T;
+      if (res.status === 204) {
+        return undefined as T;
+      }
+
+      const text = await res.text();
+      if (text.length === 0) {
+        return undefined as T;
+      }
+
+      return JSON.parse(text) as T;
     },
     options.skipAuthRefresh,
   );
@@ -206,6 +270,37 @@ export const apiClient = {
 
   delete<T>(path: string, signal?: AbortSignal): Promise<T> {
     return request<T>(path, { method: "DELETE", signal, isRetry: false });
+  },
+
+  getBlob(path: string, signal?: AbortSignal): Promise<Blob> {
+    return executeWithAuthRetry(
+      createAttempt(path, { method: "GET", signal, isRetry: false }),
+      async (res: Response): Promise<Blob> => {
+        if (!res.ok) {
+          await throwForErrorResponse(res, path);
+        }
+        return res.blob();
+      },
+    );
+  },
+
+  postForm<T>(path: string, form: FormData, signal?: AbortSignal): Promise<T> {
+    return executeWithAuthRetry(
+      createFormAttempt(path, form, signal),
+      async (res: Response): Promise<T> => {
+        if (!res.ok) {
+          await throwForErrorResponse(res, path);
+        }
+        if (res.status === 204) {
+          return undefined as T;
+        }
+        const text = await res.text();
+        if (text.length === 0) {
+          return undefined as T;
+        }
+        return JSON.parse(text) as T;
+      },
+    );
   },
 
   stream(

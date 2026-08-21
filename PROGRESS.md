@@ -7,8 +7,9 @@
 | Field | Value |
 |-------|-------|
 | Phase | P1 |
-| Last completed step | 1.6 — API client (401 circuit breaker) + 1.6-patch (`executeWithAuthRetry`) |
-| Next step | 1.7 — Stream guard hook |
+| Last completed step | 1.11 — Register page (`pnpm build` PASS) |
+| Next step | Archive `ship-v1-e2e` (`/opsx:archive`) |
+| Product program | `ship-v1-e2e` — see `docs/BUILD.md` |
 | Branch | `feat/phase-0-foundation` |
 
 ## Completed
@@ -24,6 +25,11 @@
 - [x] 1.4 — Token utilities (`lib/auth/token.ts`)
 - [x] 1.5 — Token refresh coordinator (`lib/auth/token-refresh.ts`)
 - [x] 1.6 — API client (`lib/api/client.ts`)
+- [x] 1.7 — Stream guard (`lib/hooks/use-stream-guard.ts`)
+- [x] 1.8 — API stubs + OpenAPI types
+- [x] 1.9 — middleware presence cookie
+- [x] 1.10 — Login page
+- [x] 1.11 — Register page
 
 ## Notes
 
@@ -56,4 +62,10 @@
 1.5 PASS
 1.6 PASS
 1.6-patch PASS
+1.7 PASS
+1.8 PASS
+1.9 PASS
+1.10 PASS
+1.11 PASS
+pnpm build PASS
 ```

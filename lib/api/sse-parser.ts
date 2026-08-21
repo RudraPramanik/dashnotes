@@ -1,4 +1,65 @@
+import type { ChatCitation } from "@/lib/api/types";
+
 export type SseEvent = { event: string; data: string };
+
+/**
+ * Live `/ai/chat/stream` and `/ai/agent/stream` send `data: {"type":"..."}`
+ * frames and omit SSE `event:` lines, so `event` defaults to `"message"`.
+ * Discriminate on JSON `type` inside `data`, not on `event`.
+ */
+
+export type SseJsonPayload = { type: string; [key: string]: unknown };
+
+export function isChatCitation(value: unknown): value is ChatCitation {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  return (
+    "note_id" in value &&
+    typeof value.note_id === "string" &&
+    "chunk_id" in value &&
+    typeof value.chunk_id === "string" &&
+    "title" in value &&
+    typeof value.title === "string" &&
+    "relevance_score" in value &&
+    typeof value.relevance_score === "number"
+  );
+}
+
+export function parseCitations(value: unknown): ChatCitation[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter(isChatCitation);
+}
+
+export function readStringField(
+  payload: SseJsonPayload,
+  key: string,
+): string | null {
+  const value = payload[key];
+  return typeof value === "string" ? value : null;
+}
+
+export function parseSseJsonData(data: string): SseJsonPayload | "[DONE]" | null {
+  const trimmed = data.trim();
+  if (trimmed === "[DONE]") {
+    return "[DONE]";
+  }
+  if (!trimmed.startsWith("{")) {
+    return null;
+  }
+  const parsed: unknown = JSON.parse(trimmed);
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    !("type" in parsed) ||
+    typeof (parsed as { type: unknown }).type !== "string"
+  ) {
+    return null;
+  }
+  return parsed as SseJsonPayload;
+}
 
 function parseSseBlock(block: string): SseEvent | null {
   const trimmed = block.trim();

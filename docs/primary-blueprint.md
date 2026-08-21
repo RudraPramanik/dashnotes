@@ -312,7 +312,7 @@ Full factory file — include `aiHealth`, `automationCount` (see frontend-stack)
 
 | Component | Launch behaviour | Future |
 |-----------|------------------|--------|
-| `WorkspaceLabel` | Shows current workspace name from `GET /workspaces` + JWT `wid` | — |
+| `WorkspaceLabel` | Shows current workspace name from `GET /workspaces/me` | — |
 | `WorkspaceSwitcher` | **Not rendered** | Drop-in when `POST /auth/switch-workspace` exists |
 
 ```ts
@@ -472,7 +472,7 @@ pnpm add cmdk
 pnpm dlx shadcn@latest add command
 ```
 
-`next/dynamic` load palette. Local cache search + `GET /ai/test-search`.
+`next/dynamic` load palette. Local cache search + `POST /ai/test-search`.
 
 ---
 

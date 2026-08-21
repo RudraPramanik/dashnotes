@@ -1,8 +1,17 @@
 # DashNotes — Backend ↔ Frontend Contract
 
-API surface the **Next.js client requires** or will integrate with. Backend team implements or confirms before the linked frontend phase ships.
+API surface the **Next.js client** uses or will integrate with. **OpenAPI `{API_BASE}/docs` and `docs/backendGuide.md` win** on live routes and JSON fields.
 
-**Status:** Pre-production — treat this as the integration spec alongside `backendapi.md`.
+**Status:** Split below into **Live** (in OpenAPI today) vs **Deferred** (wishlist — do not require for core auth/notes/files/chat/agent/threads).
+
+---
+
+## Live vs deferred (read this first)
+
+| Class | What |
+|-------|------|
+| **Live** | Auth JSON + refresh + 401 circuit breaker; notes/files/notebooks/workspaces/me/members; `/ai/chat*`, `/ai/agent*`, `/ai/threads*`; `POST /ai/test-search`; `GET /health` |
+| **Deferred** | `indexing_status` / `indexed_at`; `GET /health/ai`; `POST /auth/switch-workspace`; automation SSE + queue APIs |
 
 ---
 
@@ -10,17 +19,17 @@ API surface the **Next.js client requires** or will integrate with. Backend team
 
 | Topic | Decision |
 |-------|----------|
-| Refresh tokens | **Required** for production — silent refresh before SSE and on 401 |
-| Workspace switching | **Deferred** — single workspace per session at launch; UI shows read-only label; switcher added later on both sides |
-| Automation notifications | **Abstract now, implement later** — frontend wires ports + feature flags; backend ships SSE + queue when ready |
-| Indexing status | **Backend-owned** — explicit `indexing_status` on notes/files; no long-term frontend heuristics |
+| Refresh tokens | **Required (live)** — silent refresh before SSE and on 401 |
+| Workspace switching | **Deferred** — single workspace per session; UI shows read-only label from `GET /workspaces/me` |
+| Automation notifications | **Deferred** — frontend wires ports + feature flags; backend ships SSE + queue when ready |
+| Indexing status | **Deferred** until OpenAPI lists the field — until then, indexing-lag UX (copy / refresh), never infer from empty `tags` |
 | Note editor | **Tiptap from Phase 3** — OSS, no license cost |
 | Theming | **shadcn + `next-themes`** — dark default, class strategy |
-| AI health | **`GET /health/ai`** when available; frontend degrades gracefully if 404 |
+| AI health | **Deferred** `GET /health/ai` — 404 MUST NOT fail the shell; infer from `/ai/*` 503 |
 
 ---
 
-## P0 — Auth (required before frontend Phase 1 ships)
+## Live — Auth (required before frontend Phase 1 ships)
 
 ### `POST /auth/login`
 
@@ -98,7 +107,9 @@ Prefer **403** for RBAC denials on the backend so clients can distinguish forbid
 
 ---
 
-## P0 — Indexing status (required before frontend Phase 3–4 polish)
+## Deferred — Indexing status (not in OpenAPI yet; do not require for Phase 3–4)
+
+When the backend adds these fields to **Note** and **File** schemas, the client MAY poll them. Until then, show indexing-lag UX per `docs/backendGuide.md` (tens of seconds; refresh list/detail; do not claim AI is broken).
 
 Add to **Note** and **File** response schemas:
 
@@ -129,7 +140,7 @@ Frontend polls every 5s while `pending` or `processing`; stops at `indexed` or `
 
 ---
 
-## P1 — AI health (frontend Phase 2)
+## Deferred — AI health (optional; 404 is success for the shell)
 
 ### `GET /health/ai`
 
@@ -152,7 +163,7 @@ Does not block deploy gate (`GET /health` remains db + redis only).
 
 ---
 
-## P2 — Workspace switching (deferred)
+## Deferred — Workspace switching
 
 Not required at launch. When implemented:
 
@@ -166,11 +177,11 @@ Not required at launch. When implemented:
 
 Frontend will: `queryClient.clear()` → `setSession(newTokens)` → redirect `/notes`.
 
-Until then: display workspace name from `GET /workspaces` (current `wid` only).
+Until then: display workspace name from `GET /workspaces/me`.
 
 ---
 
-## P2 — Automation (deferred; frontend abstracts now)
+## Deferred — Automation (frontend abstracts now)
 
 ### `GET /ai/notifications/stream` (SSE)
 
@@ -226,8 +237,8 @@ All endpoints above must appear in `/openapi.json` for `pnpm api:types` regenera
 | Backend delivers | Frontend phase unblocked |
 |------------------|--------------------------|
 | Login + refresh tokens | Phase 1 |
-| `indexing_status` on notes/files | Phase 3–4 badges (no heuristics) |
-| `GET /health/ai` | Phase 2 AI indicator (optional 404 OK) |
+| `indexing_status` on notes/files | **Deferred** — Phase 3–4 badges when OpenAPI lists the field; lag UX until then |
+| `GET /health/ai` | **Deferred** — Phase 2 AI indicator (optional 404 OK) |
 | Workspace switch | Future — swap `WorkspaceLabel` → `WorkspaceSwitcher` |
 | Automation SSE + queue | Set `AUTOMATION_ENABLED=true` |
 
@@ -237,7 +248,8 @@ All endpoints above must appear in `/openapi.json` for `pnpm api:types` regenera
 
 | Doc | Content |
 |-----|---------|
-| [backendapi.md](./backendapi.md) | Current backend implementation |
+| [backendGuide.md](./backendGuide.md) | **Live** UX/API protocol (synced) |
+| [backendapi.md](./backendapi.md) | Backend internals — superseded by backendGuide + OpenAPI for client calls |
 | [primary-blueprint.md](./primary-blueprint.md) | Phased build plan |
 | [final-blueprint.md](./final-blueprint.md) | Cursor step prompts + validation |
 | [frontend-stack.md](./frontend-stack.md) | Libraries and patterns |

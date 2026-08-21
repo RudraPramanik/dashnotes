@@ -32,7 +32,8 @@ export function isTokenExpiredOrExpiringSoon(
 export async function refreshAccessToken(
   refreshToken: string,
 ): Promise<TokenPair> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  const apiUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL;
   if (!apiUrl) {
     throw new Error("REFRESH_FAILED");
   }
