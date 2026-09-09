@@ -11,6 +11,13 @@ export async function getThreadMessages(
   return apiClient.get<ThreadMessage[]>(`/ai/threads/${threadId}/messages`);
 }
 
+export async function renameThread(
+  threadId: string,
+  title: string,
+): Promise<Thread> {
+  return apiClient.patch<Thread>(`/ai/threads/${threadId}`, { title });
+}
+
 export async function deleteThread(threadId: string): Promise<void> {
   await apiClient.delete<undefined>(`/ai/threads/${threadId}`);
 }

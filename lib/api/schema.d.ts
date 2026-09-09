@@ -454,7 +454,12 @@ export interface paths {
         delete: operations["delete_thread_ai_threads__thread_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Rename Thread
+         * @description Rename a conversation thread.
+         *     Security: only the JWT workspace can update the thread.
+         */
+        patch: operations["rename_thread_ai_threads__thread_id__patch"];
         trace?: never;
     };
     "/ai/agent": {
@@ -838,6 +843,15 @@ export interface components {
             created_at: string;
             /** Updated At */
             updated_at: string;
+        };
+        /** ThreadTitleUpdate */
+        ThreadTitleUpdate: {
+            /**
+             * Title
+             * @minLength 1
+             * @maxLength 255
+             */
+            title: string;
         };
         /** TokenResponse */
         TokenResponse: {
@@ -1825,6 +1839,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_thread_ai_threads__thread_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ThreadTitleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadResponse"];
                 };
             };
             /** @description Validation Error */

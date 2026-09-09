@@ -329,6 +329,20 @@ export function useAgentStream(
               threadIdRef.current = nextThread;
               setThreadId(nextThread);
             }
+            const title = readStringField(payload, "title");
+            if (workspaceId && nextThread && title) {
+              queryClient.setQueryData(
+                queryKeys.threads(workspaceId),
+                (old: { id: string; title: string | null }[] | undefined) => {
+                  if (!old) {
+                    return old;
+                  }
+                  return old.map((thread) =>
+                    thread.id === nextThread ? { ...thread, title } : thread,
+                  );
+                },
+              );
+            }
             setToolEvents((current) =>
               markToolStatus(current, tool, "awaiting_approval"),
             );
@@ -347,6 +361,20 @@ export function useAgentStream(
             if (nextThread) {
               threadIdRef.current = nextThread;
               setThreadId(nextThread);
+            }
+            const title = readStringField(payload, "title");
+            if (workspaceId && nextThread && title) {
+              queryClient.setQueryData(
+                queryKeys.threads(workspaceId),
+                (old: { id: string; title: string | null }[] | undefined) => {
+                  if (!old) {
+                    return old;
+                  }
+                  return old.map((thread) =>
+                    thread.id === nextThread ? { ...thread, title } : thread,
+                  );
+                },
+              );
             }
             const steps = payload.steps_taken;
             if (typeof steps === "number") {

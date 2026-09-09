@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { deleteThread } from "@/lib/api/ai/threads";
+import { deleteThread, renameThread } from "@/lib/api/ai/threads";
 import { useThreads } from "@/lib/hooks/ai/use-threads";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuthStore } from "@/lib/stores/auth-store";
@@ -97,6 +97,35 @@ export function ThreadList() {
     }
   }
 
+  async function handleRename(
+    threadId: string,
+    currentTitle: string | null,
+  ): Promise<void> {
+    const next = window.prompt(
+      "Rename conversation",
+      currentTitle || "New conversation",
+    );
+    if (next === null) {
+      return;
+    }
+    const title = next.trim();
+    if (!title) {
+      toast.error("Title must not be empty");
+      return;
+    }
+    try {
+      await renameThread(threadId, title);
+      if (workspaceId) {
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.threads(workspaceId),
+        });
+      }
+      toast.success("Conversation renamed");
+    } catch {
+      toast.error("Could not rename conversation");
+    }
+  }
+
   return (
     <div className="flex h-full w-60 shrink-0 flex-col border-r">
       <div className="flex items-center justify-between p-3">
@@ -129,6 +158,14 @@ export function ThreadList() {
                       >
                         {thread.title || "New conversation"}
                       </Link>
+                      <button
+                        type="button"
+                        className="hidden px-1 text-xs group-hover:block"
+                        aria-label="Rename conversation"
+                        onClick={() => void handleRename(thread.id, thread.title)}
+                      >
+                        ✎
+                      </button>
                       <button
                         type="button"
                         className="hidden px-2 text-xs group-hover:block"
