@@ -10,6 +10,7 @@ import { useThreadMessages } from "@/lib/hooks/ai/use-thread-messages";
 import { useShellStore } from "@/lib/stores/shell-store";
 import { AgentInput } from "@/components/agents/AgentInput";
 import { AgentMessageList } from "@/components/agents/AgentMessageList";
+import { ApprovalCard } from "@/components/agents/ApprovalCard";
 import { SessionList } from "@/components/agents/SessionList";
 import { ToolTracePanel } from "@/components/agents/ToolTracePanel";
 import { AiErrorBoundary } from "@/components/errors/AiErrorBoundary";
@@ -101,7 +102,11 @@ function AgentThreadReady({
     isStreaming,
     error,
     mutatedNotes,
+    pendingApproval,
+    isResolvingApproval,
     sendMessage,
+    approvePending,
+    rejectPending,
     cancel,
   } = useAgentStream(threadId, initialMessages);
 
@@ -116,6 +121,14 @@ function AgentThreadReady({
             </p>
           ) : null}
           <AgentMessageList messages={messages} isStreaming={isStreaming} />
+          {pendingApproval ? (
+            <ApprovalCard
+              pending={pendingApproval}
+              isResolving={isResolvingApproval}
+              onApprove={() => void approvePending()}
+              onReject={() => void rejectPending()}
+            />
+          ) : null}
           {error ? (
             <div className="mx-auto max-w-[42rem] px-4 pb-2 text-sm text-destructive">
               {error}{" "}

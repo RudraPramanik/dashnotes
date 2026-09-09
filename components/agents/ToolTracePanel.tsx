@@ -65,9 +65,11 @@ export function ToolTracePanel({
           const icon =
             event.status === "running"
               ? "…"
-              : event.status === "complete"
-                ? "✓"
-                : "✗";
+              : event.status === "awaiting_approval"
+                ? "needs approval"
+                : event.status === "complete"
+                  ? "✓"
+                  : "✗";
           return (
             <li key={`${event.name}-${event.stepIndex}`} className="rounded-md border p-2">
               <p>

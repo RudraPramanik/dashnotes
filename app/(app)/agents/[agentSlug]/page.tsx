@@ -8,6 +8,7 @@ import { useAgentStream } from "@/lib/hooks/ai/use-agent-stream";
 import { useShellStore } from "@/lib/stores/shell-store";
 import { AgentInput } from "@/components/agents/AgentInput";
 import { AgentMessageList } from "@/components/agents/AgentMessageList";
+import { ApprovalCard } from "@/components/agents/ApprovalCard";
 import { SessionList } from "@/components/agents/SessionList";
 import { ToolTracePanel } from "@/components/agents/ToolTracePanel";
 import { AiErrorBoundary } from "@/components/errors/AiErrorBoundary";
@@ -30,7 +31,11 @@ export default function AgentPage({
     error,
     mutatedNotes,
     threadId,
+    pendingApproval,
+    isResolvingApproval,
     sendMessage,
+    approvePending,
+    rejectPending,
     cancel,
   } = useAgentStream();
 
@@ -48,10 +53,10 @@ export default function AgentPage({
   }, [closeContextPanel, openContextPanel]);
 
   useEffect(() => {
-    if (threadId && !isStreaming) {
+    if (threadId && !isStreaming && !pendingApproval) {
       router.replace(`/agents/workspace-assistant/${threadId}`);
     }
-  }, [isStreaming, router, threadId]);
+  }, [isStreaming, pendingApproval, router, threadId]);
 
   return (
     <div className="flex h-[calc(100dvh-8rem)]">
@@ -64,6 +69,14 @@ export default function AgentPage({
             </p>
           ) : null}
           <AgentMessageList messages={messages} isStreaming={isStreaming} />
+          {pendingApproval ? (
+            <ApprovalCard
+              pending={pendingApproval}
+              isResolving={isResolvingApproval}
+              onApprove={() => void approvePending()}
+              onReject={() => void rejectPending()}
+            />
+          ) : null}
           {error ? (
             <div className="mx-auto max-w-[42rem] px-4 pb-2 text-sm text-destructive">
               {error}{" "}
