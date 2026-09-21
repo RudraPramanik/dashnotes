@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -21,7 +21,19 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+
+type ThreadListProps = {
+  sheetOpen?: boolean;
+  onSheetOpenChange?: (open: boolean) => void;
+};
 
 function groupLabel(iso: string): "Today" | "Yesterday" | "Older" {
   const date = new Date(iso);
@@ -38,7 +50,10 @@ function groupLabel(iso: string): "Today" | "Yesterday" | "Older" {
   return "Older";
 }
 
-export function ThreadList() {
+export function ThreadList({
+  sheetOpen = false,
+  onSheetOpenChange,
+}: ThreadListProps) {
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -46,33 +61,8 @@ export function ThreadList() {
   const { threads, isLoading, isError, isEmpty, refetch } = useThreads();
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-2 p-3">
-        <Skeleton className="h-6 w-full" />
-        <Skeleton className="h-6 w-full" />
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="space-y-2 p-3">
-        <p className="text-sm text-destructive">Could not load conversations.</p>
-        <Button size="sm" variant="outline" onClick={() => void refetch()}>
-          Retry
-        </Button>
-      </div>
-    );
-  }
-
-  const groups: Record<"Today" | "Yesterday" | "Older", typeof threads> = {
-    Today: [],
-    Yesterday: [],
-    Older: [],
-  };
-  for (const thread of threads) {
-    groups[groupLabel(thread.updated_at)].push(thread);
+  function closeSheet(): void {
+    onSheetOpenChange?.(false);
   }
 
   async function confirmDelete(): Promise<void> {
@@ -90,6 +80,7 @@ export function ThreadList() {
       if (pathname.includes(pendingDelete)) {
         router.push("/chat");
       }
+      closeSheet();
     } catch {
       toast.error("Could not delete conversation");
     } finally {
@@ -126,62 +117,133 @@ export function ThreadList() {
     }
   }
 
+  function renderBody(actionsAlwaysVisible: boolean): ReactNode {
+    if (isLoading) {
+      return (
+        <div className="space-y-2 p-3">
+          <Skeleton className="h-6 w-full" />
+          <Skeleton className="h-6 w-full" />
+        </div>
+      );
+    }
+
+    if (isError) {
+      return (
+        <div className="space-y-2 p-3">
+          <p className="text-sm text-destructive">Could not load conversations.</p>
+          <Button size="sm" variant="outline" onClick={() => void refetch()}>
+            Retry
+          </Button>
+        </div>
+      );
+    }
+
+    const groups: Record<"Today" | "Yesterday" | "Older", typeof threads> = {
+      Today: [],
+      Yesterday: [],
+      Older: [],
+    };
+    for (const thread of threads) {
+      groups[groupLabel(thread.updated_at)].push(thread);
+    }
+
+    return (
+      <>
+        <div className="flex items-center justify-between p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Your conversations
+          </p>
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/chat" onClick={closeSheet}>
+              New
+            </Link>
+          </Button>
+        </div>
+        {isEmpty ? (
+          <p className="px-3 text-sm text-muted-foreground">
+            No conversations yet.
+          </p>
+        ) : (
+          <nav className="flex-1 overflow-y-auto px-2 pb-3">
+            {(["Today", "Yesterday", "Older"] as const).map((label) =>
+              groups[label].length === 0 ? null : (
+                <div key={label} className="mb-3">
+                  <p className="px-2 py-1 text-xs text-muted-foreground">
+                    {label}
+                  </p>
+                  {groups[label].map((thread) => {
+                    const href = `/chat/${thread.id}`;
+                    const active = pathname === href;
+                    return (
+                      <div
+                        key={thread.id}
+                        className={`group flex items-center rounded-md ${active ? "bg-muted" : ""}`}
+                      >
+                        <Link
+                          href={href}
+                          className="min-w-0 flex-1 truncate px-2 py-1.5 text-sm hover:underline"
+                          onClick={closeSheet}
+                        >
+                          {thread.title || "New conversation"}
+                        </Link>
+                        <button
+                          type="button"
+                          className={
+                            actionsAlwaysVisible
+                              ? "px-1 text-xs"
+                              : "hidden px-1 text-xs group-hover:block"
+                          }
+                          aria-label="Rename conversation"
+                          onClick={() =>
+                            void handleRename(thread.id, thread.title)
+                          }
+                        >
+                          ✎
+                        </button>
+                        <button
+                          type="button"
+                          className={
+                            actionsAlwaysVisible
+                              ? "px-2 text-xs"
+                              : "hidden px-2 text-xs group-hover:block"
+                          }
+                          aria-label="Delete conversation"
+                          onClick={() => setPendingDelete(thread.id)}
+                        >
+                          🗑
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ),
+            )}
+          </nav>
+        )}
+      </>
+    );
+  }
+
   return (
-    <div className="flex h-full w-60 shrink-0 flex-col border-r">
-      <div className="flex items-center justify-between p-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Your conversations
-        </p>
-        <Button size="sm" variant="outline" asChild>
-          <Link href="/chat">New</Link>
-        </Button>
+    <>
+      <div className="hidden h-full w-60 shrink-0 flex-col border-r md:flex">
+        {renderBody(false)}
       </div>
-      {isEmpty ? (
-        <p className="px-3 text-sm text-muted-foreground">No conversations yet.</p>
-      ) : (
-        <nav className="flex-1 overflow-y-auto px-2 pb-3">
-          {(["Today", "Yesterday", "Older"] as const).map((label) =>
-            groups[label].length === 0 ? null : (
-              <div key={label} className="mb-3">
-                <p className="px-2 py-1 text-xs text-muted-foreground">{label}</p>
-                {groups[label].map((thread) => {
-                  const href = `/chat/${thread.id}`;
-                  const active = pathname === href;
-                  return (
-                    <div
-                      key={thread.id}
-                      className={`group flex items-center rounded-md ${active ? "bg-muted" : ""}`}
-                    >
-                      <Link
-                        href={href}
-                        className="min-w-0 flex-1 truncate px-2 py-1.5 text-sm hover:underline"
-                      >
-                        {thread.title || "New conversation"}
-                      </Link>
-                      <button
-                        type="button"
-                        className="hidden px-1 text-xs group-hover:block"
-                        aria-label="Rename conversation"
-                        onClick={() => void handleRename(thread.id, thread.title)}
-                      >
-                        ✎
-                      </button>
-                      <button
-                        type="button"
-                        className="hidden px-2 text-xs group-hover:block"
-                        aria-label="Delete conversation"
-                        onClick={() => setPendingDelete(thread.id)}
-                      >
-                        🗑
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            ),
-          )}
-        </nav>
-      )}
+      {onSheetOpenChange ? (
+        <Sheet open={sheetOpen} onOpenChange={onSheetOpenChange}>
+          <SheetContent side="left" className="w-[min(100%,20rem)] p-0">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Conversations</SheetTitle>
+              <SheetDescription>
+                Your chat conversations in this workspace
+              </SheetDescription>
+            </SheetHeader>
+            <div className="flex h-full flex-col pt-10">
+              {renderBody(true)}
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
       <AlertDialog
         open={pendingDelete !== null}
         onOpenChange={(open) => {
@@ -199,12 +261,15 @@ export function ThreadList() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => void confirmDelete()}>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => void confirmDelete()}
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }

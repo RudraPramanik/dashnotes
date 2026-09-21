@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -21,9 +21,24 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export function SessionList() {
+type SessionListProps = {
+  sheetOpen?: boolean;
+  onSheetOpenChange?: (open: boolean) => void;
+};
+
+export function SessionList({
+  sheetOpen = false,
+  onSheetOpenChange,
+}: SessionListProps) {
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -31,23 +46,8 @@ export function SessionList() {
   const { threads, isLoading, isError, isEmpty, refetch } = useThreads();
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
-  if (isLoading) {
-    return (
-      <div className="w-60 space-y-2 border-r p-3">
-        <Skeleton className="h-6 w-full" />
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="w-60 space-y-2 border-r p-3">
-        <p className="text-sm text-destructive">Could not load sessions.</p>
-        <Button size="sm" variant="outline" onClick={() => void refetch()}>
-          Retry
-        </Button>
-      </div>
-    );
+  function closeSheet(): void {
+    onSheetOpenChange?.(false);
   }
 
   async function confirmDelete(): Promise<void> {
@@ -65,6 +65,7 @@ export function SessionList() {
       if (pathname.includes(pendingDelete)) {
         router.push("/agents/workspace-assistant");
       }
+      closeSheet();
     } catch {
       toast.error("Could not delete session");
     } finally {
@@ -98,55 +99,110 @@ export function SessionList() {
     }
   }
 
+  function renderBody(actionsAlwaysVisible: boolean): ReactNode {
+    if (isLoading) {
+      return (
+        <div className="space-y-2 p-3">
+          <Skeleton className="h-6 w-full" />
+        </div>
+      );
+    }
+
+    if (isError) {
+      return (
+        <div className="space-y-2 p-3">
+          <p className="text-sm text-destructive">Could not load sessions.</p>
+          <Button size="sm" variant="outline" onClick={() => void refetch()}>
+            Retry
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <div className="flex items-center justify-between p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Sessions
+          </p>
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/agents/workspace-assistant" onClick={closeSheet}>
+              New
+            </Link>
+          </Button>
+        </div>
+        {isEmpty ? (
+          <p className="px-3 text-sm text-muted-foreground">No sessions yet.</p>
+        ) : (
+          <nav className="flex-1 overflow-y-auto px-2 pb-3">
+            {threads.map((thread) => {
+              const href = `/agents/workspace-assistant/${thread.id}`;
+              const active = pathname === href;
+              return (
+                <div
+                  key={thread.id}
+                  className={`group flex items-center rounded-md ${active ? "bg-muted" : ""}`}
+                >
+                  <Link
+                    href={href}
+                    className="min-w-0 flex-1 truncate px-2 py-1.5 text-sm hover:underline"
+                    onClick={closeSheet}
+                  >
+                    {thread.title || "New session"}
+                  </Link>
+                  <button
+                    type="button"
+                    className={
+                      actionsAlwaysVisible
+                        ? "px-1 text-xs"
+                        : "hidden px-1 text-xs group-hover:block"
+                    }
+                    aria-label="Rename session"
+                    onClick={() => void handleRename(thread.id, thread.title)}
+                  >
+                    ✎
+                  </button>
+                  <button
+                    type="button"
+                    className={
+                      actionsAlwaysVisible
+                        ? "px-2 text-xs"
+                        : "hidden px-2 text-xs group-hover:block"
+                    }
+                    aria-label="Delete session"
+                    onClick={() => setPendingDelete(thread.id)}
+                  >
+                    🗑
+                  </button>
+                </div>
+              );
+            })}
+          </nav>
+        )}
+      </>
+    );
+  }
+
   return (
-    <div className="flex h-full w-60 shrink-0 flex-col border-r">
-      <div className="flex items-center justify-between p-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Sessions
-        </p>
-        <Button size="sm" variant="outline" asChild>
-          <Link href="/agents/workspace-assistant">New</Link>
-        </Button>
+    <>
+      <div className="hidden h-full w-60 shrink-0 flex-col border-r md:flex">
+        {renderBody(false)}
       </div>
-      {isEmpty ? (
-        <p className="px-3 text-sm text-muted-foreground">No sessions yet.</p>
-      ) : (
-        <nav className="flex-1 overflow-y-auto px-2 pb-3">
-          {threads.map((thread) => {
-            const href = `/agents/workspace-assistant/${thread.id}`;
-            const active = pathname === href;
-            return (
-              <div
-                key={thread.id}
-                className={`group flex items-center rounded-md ${active ? "bg-muted" : ""}`}
-              >
-                <Link
-                  href={href}
-                  className="min-w-0 flex-1 truncate px-2 py-1.5 text-sm hover:underline"
-                >
-                  {thread.title || "New session"}
-                </Link>
-                <button
-                  type="button"
-                  className="hidden px-1 text-xs group-hover:block"
-                  aria-label="Rename session"
-                  onClick={() => void handleRename(thread.id, thread.title)}
-                >
-                  ✎
-                </button>
-                <button
-                  type="button"
-                  className="hidden px-2 text-xs group-hover:block"
-                  aria-label="Delete session"
-                  onClick={() => setPendingDelete(thread.id)}
-                >
-                  🗑
-                </button>
-              </div>
-            );
-          })}
-        </nav>
-      )}
+      {onSheetOpenChange ? (
+        <Sheet open={sheetOpen} onOpenChange={onSheetOpenChange}>
+          <SheetContent side="left" className="w-[min(100%,20rem)] p-0">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Sessions</SheetTitle>
+              <SheetDescription>
+                Your agent sessions in this workspace
+              </SheetDescription>
+            </SheetHeader>
+            <div className="flex h-full flex-col pt-10">
+              {renderBody(true)}
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
       <AlertDialog
         open={pendingDelete !== null}
         onOpenChange={(open) => {
@@ -164,12 +220,15 @@ export function SessionList() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => void confirmDelete()}>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => void confirmDelete()}
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }

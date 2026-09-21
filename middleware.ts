@@ -11,6 +11,10 @@ function isPublicPath(pathname: string): boolean {
   return false;
 }
 
+function isAuthRecoveryPath(pathname: string): boolean {
+  return pathname === "/auth/forgot" || pathname.startsWith("/auth/reset");
+}
+
 export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
   const authed = request.cookies.get("dashnotes_authed")?.value;
@@ -22,7 +26,7 @@ export function middleware(request: NextRequest): NextResponse {
     return NextResponse.redirect(new URL("/auth/login", request.url));
   }
 
-  if (authed && pathname.startsWith("/auth/")) {
+  if (authed && pathname.startsWith("/auth/") && !isAuthRecoveryPath(pathname)) {
     return NextResponse.redirect(new URL("/notes", request.url));
   }
 

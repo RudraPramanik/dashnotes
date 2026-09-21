@@ -10,6 +10,7 @@ import { z } from "zod";
 import { isAuthRequestError, register as registerAccount } from "@/lib/api/auth";
 import { claimsFromAccessToken, setPresenceCookie } from "@/lib/auth/session";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { PasswordInput } from "@/components/auth/PasswordInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -122,9 +123,8 @@ export function RegisterForm() {
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">Password</Label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="new-password"
           {...register("password")}
         />
@@ -134,9 +134,8 @@ export function RegisterForm() {
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="confirmPassword">Confirm password</Label>
-        <Input
+        <PasswordInput
           id="confirmPassword"
-          type="password"
           autoComplete="new-password"
           {...register("confirmPassword")}
         />

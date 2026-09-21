@@ -1,9 +1,14 @@
+import { apiClient, isApiError } from "@/lib/api/client";
 import { refreshAccessToken } from "@/lib/auth/token";
 
 export type TokenResponse = {
   access_token: string;
   refresh_token: string;
   token_type?: string;
+};
+
+export type ForgotPasswordResponse = {
+  message: string;
 };
 
 export type AuthRequestError = {
@@ -31,9 +36,24 @@ function isAuthRequestError(error: unknown): error is AuthRequestError {
   return "status" in error && "message" in error;
 }
 
-async function parseAuthResponse(
-  response: Response,
-): Promise<TokenResponse> {
+function toAuthRequestError(error: unknown): AuthRequestError {
+  if (isAuthRequestError(error)) {
+    return error;
+  }
+  if (isApiError(error)) {
+    return {
+      status: error.status,
+      message: error.message,
+      retryAfter: error.retryAfter,
+    };
+  }
+  return {
+    status: 0,
+    message: "Request failed",
+  };
+}
+
+async function throwIfAuthFailed(response: Response): Promise<void> {
   if (response.status === 429) {
     const retryAfterHeader = response.headers.get("Retry-After");
     const parsedRetryAfter = retryAfterHeader
@@ -69,7 +89,12 @@ async function parseAuthResponse(
       message,
     } satisfies AuthRequestError;
   }
+}
 
+async function parseAuthResponse(
+  response: Response,
+): Promise<TokenResponse> {
+  await throwIfAuthFailed(response);
   return (await response.json()) as TokenResponse;
 }
 
@@ -114,6 +139,47 @@ export async function refresh(
     access_token: tokens.accessToken,
     refresh_token: tokens.refreshToken,
   };
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<TokenResponse> {
+  try {
+    return await apiClient.post<TokenResponse>("/auth/change-password", {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+  } catch (error) {
+    throw toAuthRequestError(error);
+  }
+}
+
+export async function requestPasswordReset(
+  email: string,
+): Promise<ForgotPasswordResponse> {
+  const response = await fetch(`${getApiBaseUrl()}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  await throwIfAuthFailed(response);
+  return (await response.json()) as ForgotPasswordResponse;
+}
+
+export async function resetPassword(
+  token: string,
+  newPassword: string,
+): Promise<void> {
+  const response = await fetch(`${getApiBaseUrl()}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+  if (response.status === 204) {
+    return;
+  }
+  await throwIfAuthFailed(response);
 }
 
 export { isAuthRequestError };
