@@ -10,6 +10,7 @@ import { z } from "zod";
 import { isAuthRequestError, login } from "@/lib/api/auth";
 import { claimsFromAccessToken, setPresenceCookie } from "@/lib/auth/session";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { PasswordInput } from "@/components/auth/PasswordInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -117,9 +118,8 @@ export function LoginForm() {
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">Password</Label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="current-password"
           {...register("password")}
         />
@@ -133,6 +133,11 @@ export function LoginForm() {
       <Button type="submit" disabled={isSubmitting || retryAfter !== null}>
         {isSubmitting ? "Signing in…" : "Sign in"}
       </Button>
+      <p className="text-center text-sm text-muted-foreground">
+        <Link className="text-foreground underline-offset-4 hover:underline" href="/auth/forgot">
+          Forgot password?
+        </Link>
+      </p>
       <p className="text-center text-sm text-muted-foreground">
         No account?{" "}
         <Link className="text-foreground underline-offset-4 hover:underline" href="/auth/register">

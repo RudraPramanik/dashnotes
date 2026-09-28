@@ -137,6 +137,20 @@ export function useChatStream(
             if (nextThread) {
               setThreadId(nextThread);
             }
+            const title = readStringField(payload, "title");
+            if (workspaceId && nextThread && title) {
+              queryClient.setQueryData(
+                queryKeys.threads(workspaceId),
+                (old: { id: string; title: string | null }[] | undefined) => {
+                  if (!old) {
+                    return old;
+                  }
+                  return old.map((thread) =>
+                    thread.id === nextThread ? { ...thread, title } : thread,
+                  );
+                },
+              );
+            }
           }
           if (payload.type === "error") {
             setError(

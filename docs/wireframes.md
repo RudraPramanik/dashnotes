@@ -500,9 +500,9 @@ Source: 429 + Retry-After header (global 100/min; login 5/min)
 
 | Breakpoint | Shell | Chat / Agent |
 |------------|-------|--------------|
-| Desktop ≥1280px | 3-column: nav + main + context | Threads + conversation + panel |
-| Tablet 768–1279px | Collapsible nav; context as drawer | Threads collapse to dropdown |
-| Mobile <768px | Bottom tabs | Full-screen conversation; panel = bottom sheet |
+| Desktop ≥1024px (`lg+`) | Sidebar + main + context panel | Threads/sessions rail + conversation + Sources/Tools panel |
+| Tablet 768–1023px (`md`–`lg`) | Sidebar + main; context = bottom sheet | Threads/sessions rail + conversation; Sources/Tools via sheet |
+| Mobile <768px | Bottom tabs (no header hamburger) | Full-width conversation; threads/sessions left sheet; Sources/Tools bottom sheet |
 
 ---
 
