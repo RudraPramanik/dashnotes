@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 function isPublicPath(pathname: string): boolean {
+  if (pathname === "/") {
+    return true;
+  }
   if (pathname.startsWith("/auth/")) {
     return true;
   }
@@ -23,7 +26,7 @@ export function middleware(request: NextRequest): NextResponse {
     if (authed) {
       return NextResponse.redirect(new URL("/notes", request.url));
     }
-    return NextResponse.redirect(new URL("/auth/login", request.url));
+    return NextResponse.next();
   }
 
   if (authed && pathname.startsWith("/auth/") && !isAuthRecoveryPath(pathname)) {

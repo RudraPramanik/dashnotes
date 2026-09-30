@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { LandingPage } from "@/components/marketing/LandingPage";
 
-export default function Home(): never {
-  redirect("/auth/login");
+export default function Home(): React.ReactElement {
+  return <LandingPage />;
 }

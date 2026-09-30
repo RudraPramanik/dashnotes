@@ -40,11 +40,13 @@ Agent marketplace, automation inbox as primary nav, workspace switcher, required
 ## Route map
 
 ```
+/                             ← guest: commercial marketing (hero, product, pricing CTAs → auth)
+                              ← authed: redirect → /notes
 /auth/login
 /auth/register
 
 /app                          ← protected shell (requires Bearer token)
-  /notes                      ← default landing
+  /notes                      ← default app landing (after auth)
   /notes/[noteId]
   /notebooks/[notebookId]
   /files

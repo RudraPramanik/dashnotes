@@ -33,7 +33,7 @@ Living program log for OpenSpec change `ship-v1-e2e`. Protocol still wins: OpenA
 | Agent                       | Workspace Assistant, tool blocks + Tools panel, note invalidate       | `POST /ai/agent/stream`                   |
 | Settings                    | Members for owner/admin; account sign-out                             | `/workspaces/members*`                    |
 | Operational banners         | Visible 429 countdown and AI 503; CRUD stays up                       | —                                         |
-| Home route                  | `/` redirects to `/auth/login` or `/notes`                            | —                                         |
+| Home route                  | Guest `/` = commercial marketing landing; authed `/` → `/notes`       | —                                         |
 
 
 ---
