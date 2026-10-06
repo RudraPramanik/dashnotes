@@ -309,14 +309,50 @@ export function useAgentStream(
           }
           if (payload.type === "tool_end") {
             const name = readStringField(payload, "tool") ?? "tool";
-            setToolEvents((current) => markToolStatus(current, name, "complete"));
-            if (name === "create_note" || name === "update_note") {
+            const resultText =
+              typeof payload.result === "string"
+                ? payload.result
+                : payload.result != null
+                  ? JSON.stringify(payload.result)
+                  : "";
+            const resultLower = resultText.toLowerCase();
+            const mutationTool =
+              name === "create_note" || name === "update_note";
+            const mutationFailed =
+              mutationTool &&
+              (resultLower.includes("error:") ||
+                resultLower.includes("checkpointer") ||
+                resultLower.includes("mutation blocked") ||
+                resultLower.includes("rejected by user") ||
+                resultLower.includes("note creation failed") ||
+                resultLower.includes("note update failed"));
+            const mutationSucceeded =
+              mutationTool &&
+              /note (created|updated) successfully/i.test(resultText);
+
+            if (mutationFailed) {
+              setToolEvents((current) =>
+                markToolStatus(current, name, "failed"),
+              );
+              setError(
+                resultLower.includes("checkpointer")
+                  ? "Agent note mutations unavailable (checkpointer). Try Chat, or create a note from Notes."
+                  : `${resultText || "Mutation failed"}. Try Chat for a fast answer.`,
+              );
+            } else if (mutationSucceeded) {
+              setToolEvents((current) =>
+                markToolStatus(current, name, "complete"),
+              );
               setMutatedNotes(true);
               await refreshNotes();
               toast.success(
                 name === "create_note"
                   ? "Note created by agent"
                   : "Note updated by agent",
+              );
+            } else {
+              setToolEvents((current) =>
+                markToolStatus(current, name, "complete"),
               );
             }
           }
@@ -395,8 +431,12 @@ export function useAgentStream(
           }
           if (payload.type === "error") {
             sawError = true;
+            const msg =
+              readStringField(payload, "message") ?? "Agent failed";
             setError(
-              `${readStringField(payload, "message") ?? "Agent failed"}. Try Chat for a fast answer.`,
+              /try chat/i.test(msg)
+                ? msg
+                : `${msg}. Try Chat for a fast answer.`,
             );
           }
         }
