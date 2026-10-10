@@ -15,7 +15,13 @@ Playwright tests MUST drive the Next.js UI against the running API origin (`NEXT
 - **AND** MUST land on Notes after a successful token session
 
 ### Requirement: B-gate browser path
-The suite MUST include a spec that, in one flow: registers, creates a note, uploads a file, asks Chat, and runs Agent. Chat assertions MUST use citations from SSE `metadata` (OpenAPI fields). Agent assertions MUST show tool start/end (or equivalent visible tool state). The spec MUST wait for indexing lag before treating missing RAG hits as failure.
+The suite MUST include a spec that, in one flow: registers, creates a note, uploads a file, asks Chat, and runs Agent. After editing note title/body, the suite MUST activate the note editor Save control before asserting save feedback or relying on that content for later RAG steps. Chat assertions MUST use citations from SSE `metadata` (OpenAPI fields). Agent assertions MUST show tool start/end (or equivalent visible tool state). The spec MUST wait for indexing lag before treating missing RAG hits as failure.
+
+#### Scenario: Note content saved explicitly
+- **WHEN** the B-gate flow creates a note and fills title/body
+- **THEN** the test MUST activate Save
+- **AND** MUST assert save feedback (saving/saved or equivalent) after that action
+- **AND** MUST NOT rely on debounce auto-save after typing alone
 
 #### Scenario: Chat citations after lag
 - **WHEN** a note and file were just created and Chat is asked about that content
