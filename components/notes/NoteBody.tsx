@@ -10,13 +10,12 @@ import { TiptapErrorBoundary } from "@/components/errors/TiptapErrorBoundary";
 
 type NoteBodyProps = {
   initialContent: string;
-  onSave: (content: string) => void;
+  onChange: (content: string) => void;
 };
 
-export function NoteBody({ initialContent, onSave }: NoteBodyProps) {
-  const onSaveRef = useRef(onSave);
-  onSaveRef.current = onSave;
-  const timerRef = useRef<number | null>(null);
+export function NoteBody({ initialContent, onChange }: NoteBodyProps) {
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
   const [characters, setCharacters] = useState(0);
   const [words, setWords] = useState(0);
   const editor = useEditor({
@@ -38,22 +37,9 @@ export function NoteBody({ initialContent, onSave }: NoteBodyProps) {
       const text = current.getText();
       setCharacters(text.length);
       setWords(text.split(/\s+/).filter(Boolean).length);
-      if (timerRef.current !== null) {
-        window.clearTimeout(timerRef.current);
-      }
-      timerRef.current = window.setTimeout(() => {
-        onSaveRef.current(current.getHTML());
-      }, 1500);
+      onChangeRef.current(current.getHTML());
     },
   });
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current !== null) {
-        window.clearTimeout(timerRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     if (!editor) {

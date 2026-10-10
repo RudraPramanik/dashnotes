@@ -25,6 +25,7 @@ test.describe("B-gate", () => {
     const editor = page.getByLabel("Note content");
     await editor.click();
     await editor.fill(NOTE_BODY);
+    await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText(/Saving…|Saved/)).toBeVisible({
       timeout: 10_000,
     });

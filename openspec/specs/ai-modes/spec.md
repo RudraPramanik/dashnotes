@@ -31,11 +31,26 @@ The client MUST support listing threads (`GET /ai/threads`), loading messages (`
 - **THEN** the client MUST include that `thread_id` in the chat/agent request body
 
 ### Requirement: Agent tool timeline
-For agent SSE (`POST /ai/agent/stream`), the UI MUST handle JSON `type` values `token`, `tool_start`, `tool_end`, `done`, and `error` inside `data:` lines, then close on literal `[DONE]`. After `done` when tools may have mutated notes, the client SHOULD refresh notes list data. On agent failure / 503, the UI MUST show a user-visible message and MAY suggest falling back to chat.
+For agent SSE (`POST /ai/agent/stream`), the UI MUST handle JSON `type` values `token`, `tool_start`, `tool_end`, `done`, `error`, and `approval_required` inside `data:` lines, then close on literal `[DONE]`. After `done` or an approved mutation path when tools may have mutated notes, the client SHOULD refresh notes list data. On agent failure / 503 / SSE `error`, the UI MUST show a user-visible message and MAY suggest falling back to chat.
+
+For mutation tools (`create_note`, `update_note`), the client MUST NOT treat `tool_end` alone as proof that a note was created or updated. If the tool result indicates an error, blocked mutation, or missing checkpointer, the UI MUST show a failed/blocked state and MUST NOT toast success or claim the assistant changed a note. Success UX for mutations MUST require `approval_required` followed by approve, or an explicit successful completion after resume—not an error-bearing `tool_end`.
 
 #### Scenario: Tool execution visible
 - **WHEN** the agent stream emits `{"type":"tool_start",...}` then `{"type":"tool_end",...}`
 - **THEN** the UI MUST show that a tool ran (name and finished state)
+
+#### Scenario: Blocked mutation is not shown as success
+- **GIVEN** an agent stream emits `tool_end` for `create_note` whose result indicates checkpointer/mutation unavailability or another error
+- **WHEN** the client updates the tool timeline and toasts
+- **THEN** the UI MUST NOT show a success toast for note creation
+- **AND** MUST NOT claim the assistant changed a note
+- **AND** MUST show a user-visible failure or blocked state
+- **AND** MAY offer Chat as a fallback
+
+#### Scenario: Approval path remains the success gate for creates
+- **GIVEN** a healthy checkpointer and an agent stream that emits `approval_required` for `create_note`
+- **WHEN** the user approves via the documented resume path
+- **THEN** the UI MAY show mutation success only after that approve/resume completes successfully
 
 ### Requirement: AI tenancy from JWT only
 All AI routes require Bearer auth. The client MUST NOT send `workspace_id`, `user_id`, or `role` in AI request bodies to override JWT claims.

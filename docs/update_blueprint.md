@@ -525,9 +525,10 @@ console.log('3.3/4.3 PASS');
 
 ## Revised Step 3.4 — Tiptap editor, split by responsibility
 
-Same file-level goals as v2 (auto-save title/body, privacy toggle, char
+Same file-level goals as v2 (title/body editing, privacy toggle, char
 count, delete/copy-link menu, error boundary), but composed from four small
-components instead of one file carrying all of it.
+components instead of one file carrying all of it. Title/body persist only
+on an explicit Save control (not typing debounce).
 
 ```
 TASK: Build the note editor as a composition of single-purpose components.
@@ -537,20 +538,18 @@ specified there.
 FILE 1: components/notes/NoteTitleField.tsx
 - "use client" directive
 - Named export: NoteTitleField
-- Props: { initialTitle: string; onSave: (title: string) => void }
-- Owns its own <input> local state and its own 1500ms debounce timer
-- Calls onSave(title) when the debounce fires; clears timer on unmount
-- No knowledge of noteId, mutations, or the API — purely "text in, debounced
-  callback out"
+- Props: { initialTitle: string; onChange: (title: string) => void }
+- Owns its own <input> local state
+- Calls onChange(title) on each keystroke — no typing debounce / no network
+- No knowledge of noteId, mutations, or the API — purely "text in, callback out"
 
 FILE 2: components/notes/NoteBody.tsx
 - "use client" directive
 - Named export: NoteBody
-- Props: { initialContent: string; onSave: (content: string) => void }
+- Props: { initialContent: string; onChange: (content: string) => void }
 - Owns the useEditor() Tiptap instance (StarterKit, Placeholder,
   CharacterCount extensions)
-- Owns its own 1500ms debounce timer independent of NoteTitleField's
-- Calls onSave(content) on debounce fire; clears timer on unmount
+- Calls onChange(content) on editor update — no typing debounce / no network
 - Exposes character/word count via its own local render (footer text), not
   via a prop threaded from the parent
 - Wraps its <EditorContent> in <TiptapErrorBoundary> internally — the parent
@@ -577,28 +576,27 @@ FILE 5: components/notes/NoteEditor.tsx (composition root — now thin)
 - Named export: NoteEditor
 - Props: { noteId: string; initialContent: string; initialTitle: string; isPrivate: boolean }
 - Calls useNoteMutations() once, here
+- Holds current title/content from leaf onChange callbacks
+- Upper-left Save button persists { title, content } via updateNote
+- Save click protection: disable while saving, in-flight early-return, short
+  Save-click debounce so rapid clicks do not stack concurrent updateNote calls
 - Tracks a single save-state indicator ('idle' | 'saving' | 'saved' | 'error')
-  shared across title/body saves — this is the one piece of state that
-  legitimately belongs at this level, since it reflects the combined result
-  of both children's onSave calls
 - Renders:
-  <NoteTitleField initialTitle={...} onSave={handleTitleSave} />
-  <NoteBody initialContent={...} onSave={handleBodySave} />
+  <Button>Save</Button> (upper left)
+  <NoteTitleField initialTitle={...} onChange={...} />
+  <NoteBody initialContent={...} onChange={...} />
   <NotePrivacyToggle isPrivate={isPrivate} onChange={handlePrivacyChange} />
   <NoteActionsMenu onDelete={handleDelete} onCopyLink={handleCopyLink} />
   + the save indicator text: "Saving…" | "Saved · {n}s ago" | "Failed to save — Retry"
-- handleTitleSave / handleBodySave / handlePrivacyChange / handleDelete /
-  handleCopyLink are the only functions in this file — each calls the
-  relevant mutation from useNoteMutations() and updates save-state
+- Privacy toggle still updates immediately; title/body only on Save
 
 RULES:
 - Each of the four leaf components takes primitive/callback props only — no
   leaf component imports useNoteMutations, apiClient, or noteId. This is the
   strict-prop-contract boundary: NoteEditor is the only place that knows
   about the network.
-- Debounce timers are owned by the component that owns the value being
-  debounced (title timer in NoteTitleField, body timer in NoteBody) — not
-  hoisted to the parent. Both must clear their own timer on unmount.
+- No typing debounce on title/body. Save-click debounce + in-flight guard
+  live in NoteEditor with the Save control.
 - Privacy toggle has no debounce — unchanged from v2.
 ```
 
@@ -611,14 +609,15 @@ const fs=require('fs');
 });
 const leaf1=fs.readFileSync('components/notes/NoteTitleField.tsx','utf8');
 const leaf2=fs.readFileSync('components/notes/NotePrivacyToggle.tsx','utf8');
-[leaf1, leaf2].forEach(c=>{
+const body=fs.readFileSync('components/notes/NoteBody.tsx','utf8');
+[leaf1, leaf2, body].forEach(c=>{
   if(c.includes('useNoteMutations') || c.includes('apiClient')) throw new Error('VIOLATION: leaf editor component must not know about mutations/network');
 });
-const body=fs.readFileSync('components/notes/NoteBody.tsx','utf8');
-if(!body.includes('1500')) throw new Error('NoteBody missing 1500ms debounce');
+if(leaf1.includes('1500') || body.includes('1500')) throw new Error('Title/body must not use typing debounce');
 if(!body.includes('TiptapErrorBoundary')) throw new Error('NoteBody must wrap its own EditorContent in TiptapErrorBoundary');
 const root=fs.readFileSync('components/notes/NoteEditor.tsx','utf8');
 if(!root.includes('useNoteMutations')) throw new Error('NoteEditor must own useNoteMutations');
+if(!root.includes('Save') || !root.includes('saveInFlight')) throw new Error('NoteEditor must expose Save with in-flight guard');
 if(!root.includes('NoteTitleField') || !root.includes('NoteBody') || !root.includes('NotePrivacyToggle') || !root.includes('NoteActionsMenu')) throw new Error('NoteEditor must compose all four leaf components');
 console.log('3.4 PASS');
 "
