@@ -26,9 +26,10 @@ test.describe("B-gate", () => {
     await editor.click();
     await editor.fill(NOTE_BODY);
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByText(/Saving…|Saved/)).toBeVisible({
+    await expect(page.getByText(/Saving…|Note saved/)).toBeVisible({
       timeout: 10_000,
     });
+    await expect(page.getByRole("button", { name: "Save" })).toBeDisabled();
 
     await page.getByRole("link", { name: "Files" }).click();
     await expect(page).toHaveURL(/\/files/);

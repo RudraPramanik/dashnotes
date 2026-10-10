@@ -577,17 +577,21 @@ FILE 5: components/notes/NoteEditor.tsx (composition root — now thin)
 - Props: { noteId: string; initialContent: string; initialTitle: string; isPrivate: boolean }
 - Calls useNoteMutations() once, here
 - Holds current title/content from leaf onChange callbacks
-- Upper-left Save button persists { title, content } via updateNote
+- Tracks last-saved title/content snapshot; Save enabled only when dirty
+  and not saving
+- Top-right Save button persists { title, content } via updateNote
 - Save click protection: disable while saving, in-flight early-return, short
   Save-click debounce so rapid clicks do not stack concurrent updateNote calls
+- While saving: button label "Saving…", aria-busy, disabled
+- After success: status "Note saved" (elapsed optional); Save stays disabled
+  until title/body change again
 - Tracks a single save-state indicator ('idle' | 'saving' | 'saved' | 'error')
 - Renders:
-  <Button>Save</Button> (upper left)
   <NoteTitleField initialTitle={...} onChange={...} />
-  <NoteBody initialContent={...} onChange={...} />
+  <Button>Save</Button> (top-right cluster)
   <NotePrivacyToggle isPrivate={isPrivate} onChange={handlePrivacyChange} />
   <NoteActionsMenu onDelete={handleDelete} onCopyLink={handleCopyLink} />
-  + the save indicator text: "Saving…" | "Saved · {n}s ago" | "Failed to save — Retry"
+  + the save indicator text: "Saving…" | "Note saved · {n}s ago" | "Failed to save — Retry"
 - Privacy toggle still updates immediately; title/body only on Save
 
 RULES:
@@ -618,6 +622,8 @@ if(!body.includes('TiptapErrorBoundary')) throw new Error('NoteBody must wrap it
 const root=fs.readFileSync('components/notes/NoteEditor.tsx','utf8');
 if(!root.includes('useNoteMutations')) throw new Error('NoteEditor must own useNoteMutations');
 if(!root.includes('Save') || !root.includes('saveInFlight')) throw new Error('NoteEditor must expose Save with in-flight guard');
+if(!root.includes('isDirty') && !root.includes('savedTitle')) throw new Error('NoteEditor must track dirty vs last-saved snapshot');
+if(!root.includes('Note saved')) throw new Error('NoteEditor must show Note saved feedback');
 if(!root.includes('NoteTitleField') || !root.includes('NoteBody') || !root.includes('NotePrivacyToggle') || !root.includes('NoteActionsMenu')) throw new Error('NoteEditor must compose all four leaf components');
 console.log('3.4 PASS');
 "
